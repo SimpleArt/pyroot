@@ -1,4 +1,3 @@
-def secant(x, x1, x2, x3, fx, f1, f2, f3, error_x, flag):
-    """secant estimate of the root"""
-    
+def secant(x1, f1, x2, f2, x3, f3, x4, f4, t):
+    """Secant estimate of the root"""
     return f2/(f2-f1)

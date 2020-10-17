@@ -1,6 +1,5 @@
-def dekker(x, x1, x2, x3, fx, f1, f2, f3, error_x, flag):
-    """Dekker's method combining secant with bisection"""
+def dekker(x1, f1, x2, f2, x3, f3, x4, f4, t):
+    """Dekker's method using secant extrapolation"""
     
-    t = f2 / (f2 - f1)
-    if t <= 0 or t >= 1: t = 0.5
-    return t
+    if f2 == f3: return 0.5
+    else: return f2*(x3-x2)/((f2-f3)*(x1-x2))

@@ -1,2 +1,3 @@
-# Root_Finders_Bracketing_Methods
- 
+"""
+Python package for finding bracketed roots and local extrema.
+"""

@@ -1,4 +1,4 @@
-def chandrupatla(x, x1, x2, x3, fx, f1, f2, f3, error_x, flag):
+def chandrupatla(x1, f1, x2, f2, x3, f3, x4, f4, t):
     """Chandrupatla's method"""
     
     xi  = (x2-x1) / (x3-x1)
@@ -10,8 +10,6 @@ def chandrupatla(x, x1, x2, x3, fx, f1, f2, f3, error_x, flag):
         b = f3 / (f1-f3)
         c = f2 / (f3-f2)
         d = f1 / (f3-f1)
-        t = a*b + c*d*al
+        return a*b + c*d*al
     else:
-        t = 0.5
-    
-    return t
+        return 0.5
