@@ -10,147 +10,116 @@ def is_nan(x):
 def is_infinite(x):
     return abs(x) == float('inf')
 
-print("Run solver.help() for an explanation on how to use the solver program.")
-
 print_flag = True
 
-def help():
-    print("""These methods allow one to find a root or relative extrema of a provided function, provided that an initial bracket is given.
+bracketing_method_dict = {
+    'bisection' : bisection
+    'binary search' : bisection
+    'regula falsi' : secant
+    'false position': secant
+    'secant' : secant
+    'dekker' : dekker
+    'brent' : brent
+    'chandrupatla' : chandrupatla
+}
 
-To enable/disable printed results, set solver.print_flag to True/False.
+def help(input = None):
+    if input is None:
+        print("""Usage:
+solver.root_in(f, x1, x2, {method, iterations, error, f1, f2})
+solver.optimize(g, x1, x2, {method, iterations, error, f})
 
-======================================================================================================
+@params
+    g: the searched function for the local extrema.
+    f: the searched function for the root. Represents the derivative of g for solver.optimize.
+    x1, x2: initial bracket.
+    method: string name of the method used for solver.root_in.
+    iterations: limit on the number of iterations before binary search is used instead of the chosen method.
+    error: desired error of |x1-x2|.
+    f1, f2: optional initial values of f(x1) and f(x2).
 
-root_in:
-
-Run a bracketing method to find a root of f between x1 and x2.
-  Requires f(x1) and f(x2) to have different signs.
-  Otherwise only one iteration of the secant method is run.
-
-The provided methods are:
-- Bisection
-- Regula Falsi / False Position
-- Dekker
-- Brent
-- Muller
-- Chandrupatla
-
-Usage: solver.root_in(f, x1, x2, {method, iterations, error, f1, f2})
-
-Example:
----------------------------------------------
->>> def f(x):
-...   return x*x - x - 1
-... 
->>> solver.root_in(f, 1, 2)
-f(1.5000000000000000) = -0.25
-f(1.6333333333333377) = 0.03444444444445427
-f(1.6178006329113883) = -0.0005217450628995923
-f(1.6180341697805805) = 4.0479695195827503e-07
-f(1.6180339887496349) = -5.810907310888069e-13
-f(1.6180339887498987) = 8.659739592076221e-15
-f(1.6180339887498910) = -8.881784197001252e-15
-1.6180339887498951
----------------------------------------------
-
-@params:
-  f: searched function
-  x1, x2: bracketing points
-  method: bracketing method to be used
-  iterations: maximum number of iterations before pure bisection is used
-  error: desired error* of |x1-x2| to terminate
-    error*: (error + 5e-15*|x1+x2|), a combination of absolute and relative errors.
-  f1, f2: initial points
-
-@defaults:
-  method: Chandrupatla's method
-  iterations: 1000 iterations
-  error: 1e-16 (near machine precision)
-  f1, f2: computed as f(x1), f(x2)
-
-======================================================================================================
-
-optimize:
-
-Local extrema may be found by bracketing the derivative.
-  Requires g to be increasing on one side and decreasing on the other.
-  This is measured by f(x) = g(x+dx) - g(x-dx), where dx is based on the error.
-  solver.root_in(f, x1, x2, method, iterations, error) is then used.
-
-Usage: solver.optimize(g, x1, x2, {method, iterations, error})
-
-Example:
----------------------------------------------------
->>> def g(x):
-...   return x*math.exp(x)
-... 
->>> solver.optimize(g, -10.5, 6, 'chandrupatla')
-g(-10.5000000000000000) = 23.52388866664127
-
-g(6.000000000000000000) = 20.69693845669907
-
-g(-2.25000000000000000) = 1.125
-f(-2.25000000000000000) = -8.1250000061317e-08
-
-g(-1.37285157401949700) = 0.2357014407670286
-f(-1.37285157401949700) = -3.5950183718824746e-08
-
-g(-0.71121935280072270) = -0.1114208899961231
-f(-0.71121935280072270) = -9.069713424736392e-09
-
-g(2.644390323599638700) = 6.944587195864736
-f(2.644390323599638700) = 2.5067845932369437e-07
-
-g(-0.57826341578574510) = -0.1385309046668266
-f(-0.57826341578574510) = -4.439796974509136e-09
-
-g(1.033063453906946800) = 2.083066350272663
-f(1.033063453906946800) = 1.0265327476943753e-07
-
-g(-0.50402936486417770) = -0.1461935886485614
-f(-0.50402936486417770) = -1.9529936556850203e-09
-
-g(0.264517044521384600) = 0.400561389028831
-f(0.264517044521384600) = 4.4801037490938e-08
-
-g(-0.46928826439943040) = -0.14780413303797862
-f(-0.46928826439943040) = -8.101439519236919e-10
-
-g(-0.44514524929657790) = -0.14814787196152124
-f(-0.44514524929657790) = -2.2778223751629412e-11
-
-g(-0.44445279786778380) = -0.1481481481088972
-f(-0.44445279786778380) = -2.7150504067208203e-13
-
-g(-0.44442774182830963) = -0.1481481479912224
-f(-0.44442774182830963) = 5.428435478904703e-13
-
-g(-0.44444444159748553) = -0.14814814814814814
-f(-0.44444444159748553) = 1.1102230246251565e-16
-
-g(-0.44444444751326584) = -0.14814814814814814
-f(-0.44444444751326584) = -1.1102230246251565e-16
-
-g(-0.44444444455537570) = -0.14814814814814814
--0.4444444445553757
----------------------------------------------------
-
-@params:
-  g: searched function
-  x1, x2: bracketing points
-  method: bracketing method to be used
-  iterations: maximum number of iterations before pure bisection is used
-  error: desired error* of |x1-x2| to terminate
-    error*: (error + 5e-15*|x1+x2|), a combination of absolute and relative errors.
-
-@defaults:
-  method: bracket default
-  iterations: bracket default
-  error: 1e-8 since usually impossible to search further due to roundoff errors and catastrophic cancellation.
-
-@return:
-  x: the result returned by solver.root_in().
+Use solver.help('root_in'), solver.help('optimize'), or solver.help('methods') for more specific information, or check the github wiki at https://github.com/SimpleArt/solver/wiki.
 """)
+    if input == 'root_in':
+        print("""Usage:
+solver.root_in(f, x1, x2, {method, iterations, error, f1, f2})
+
+@params
+    f: the searched function for the root.
+    x1, x2: initial bracket.
+    method: string name of the method used for solver.root_in.
+    iterations: limit on the number of iterations before binary search is used instead of the chosen method.
+    error: desired error of |x1-x2|.
+    f1, f2: optional initial values of f(x1) and f(x2).
+
+@defaults
+    method: 'chandrupatla'
+    iterations: 1000
+    error: 1e-14
+
+Attempts to solve f(x) = 0 between x1 and x2, given f(x1) and f(x2) have different signs, where convergence to a root can be guaranteed using binary search, a.k.a. bisection.
+
+To guarantee convergence, binary search, is used after 4 consecutive iterations without the bracketing interval halving.
+
+To avoid unnecessary binary search when the root is actually being approached rapidly, the distance from the last computed point is tripled after 3 consecutive iterations without the bracketing interval halving.
+
+Use solver.help('methods') for more specific information, or check the github wiki at https://github.com/SimpleArt/solver/wiki.
+""")
+    if input == 'optimize':
+        print("""Usage:
+solver.optimize(g, x1, x2, {method, iterations, error, f})
+
+@params
+    g: the searched function for the local extrema.
+    x1, x2: initial bracket.
+    f: the searched function for the root. Represents the derivative of g for solver.optimize.
+    method: string name of the method used for solver.root_in.
+    iterations: limit on the number of iterations before binary search is used instead of the chosen method.
+    error: desired error of |x1-x2|.
+
+@defaults
+    f: g(x+dx) - g(x-dx), where dx = error + 1e-8*abs(x)
+    method: 'chandrupatla'
+    iterations: 1000
+    error: 1e-8
+
+Attempts to find extreme values of g(x) between x1 and x2, given g(x) is increasing at one point and decreasing at the other. Uses solver.root_in to find the root of f(x), the derivative of g(x).
+
+Use solver.help('methods') for more specific information, or check the github wiki at https://github.com/SimpleArt/solver/wiki.
+""")
+    if input == 'methods':
+        print("""bracketing_method_dict = {
+    'bisection'      : bisection
+    'binary search'  : bisection
+    'regula falsi'   : secant
+    'false position' : secant
+    'secant'         : secant
+    'dekker'         : dekker
+    'brent'          : brent
+    'chandrupatla'   : chandrupatla  # default
+}
+
+bisection   : returns the midpoint of the interval.
+secant      : returns the secant estimate of the root using x1 and x2.
+dekker      : returns the secant estimate of the root, using x2 and x3.
+brent       : returns the inverse quadratic interpolation estimate of the root when possible, using x1, x2, and x3.
+chandrupatla: returns the inverse quadratic interpolation estimate of the root when the interpolation is monotone, using x1, x2, and x3.
+
+Usage:
+bracketing_method(x1, f1, x2, f2, x3, f3, x4, f4, t)
+
+@params:
+    x1, f1: bracketing point for x2.
+    x2, f2: last estimate of the root.
+    x3, f3: last removed point from the interval.
+    x4, f4: second last removed point from the interval, initially None.
+    t: last computed t, used to check if bisection was last used.
+
+@returns:
+    t: the combination of x1 and x2 for the next iteration,
+       i.e. the next x is x1 + t*(x2-x1).
+""")
+
 
 def sign(x):
     """Returns the sign of x"""
@@ -162,15 +131,15 @@ def bracketing_method(x1, f1, x2, f2, x3, f3, x4, f4, t):
     """Interface for the bracketing method.
     
     @params:
-        x1, f1: bracketing point for x2
-        x2, f2: last estimate of the root
-        x3, f3: last removed point from the interval
-        x4, f4: second last removed point from the interval, initially None
-        t: last computed t
+        x1, f1: bracketing point for x2.
+        x2, f2: last estimate of the root.
+        x3, f3: last removed point from the interval.
+        x4, f4: second last removed point from the interval, initially None.
+        t: last computed t.
     
     @returns:
-        t: the combination of x1 and x2 for the next iteration
-           i.e. the next x is x1 + t*(x2-x1)
+        t: the combination of x1 and x2 for the next iteration,
+           i.e. the next x is x1 + t*(x2-x1).
     """
     
     pass
@@ -184,36 +153,11 @@ def root_in(f, x1, x2,
     """Run a bracketing method to find a root of f between x1 and x2.
     Requires f(x1) and f(x2) to have different signs.
     Otherwise only one iteration of the secant method is run.
-    
-    @params:
-        f: searched function
-        x1, x2: bracketing points
-        method: bracketing method to be used
-        iterations: maximum number of iterations before pure bisection is used
-        error: desired error* of |x1-x2| to terminate
-            error*: (error + 5e-15*|x1+x2|), a combination of absolute and relative errors.
-        f1, f2: optional initial points, computed if not given
-    
-    @defaults:
-        method: Chandrupatla's method with inverse quadratic extrapolation.
-        iterations: 1000 iterations.
-        error: 1e-16 for double precision.
-    
-    @return:
-        (f1*x2-f2*x1)/(f1-f2), the secant estimate with the final bracket
     """
     
     """Set bracketing method to be used"""
-    if method == 'bisection':
-        bracketing_method = bisection
-    elif method in ['regula falsi', 'false position', 'secant']:
-        bracketing_method = secant
-    elif method == 'dekker':
-        bracketing_method = dekker
-    elif method == 'brent':
-        bracketing_method = brent
-    elif method in ['muller', 'quadratic']:
-        bracketing_method = newton_quadratic
+    if method in bracketing_method_dict:
+        bracketing_method = bracketing_method_dict[method]
     else:
         bracketing_method = chandrupatla
     
@@ -288,31 +232,14 @@ def root_in(f, x1, x2,
     return (x1*f2-x2*f1)/(f2-f1)
 
 def optimize(g, x1, x2,
-                f = None,
                 method = None,
                 iterations = None,
-                error = None):
+                error = None,
+                f = None):
     """Runs an optimization method to find relative extrema of g between x1 and x2.
     Requires g to be increasing on one side and decreasing on the other.
     This is measured by f(x) = g(x+dx) - g(x-dx), where dx is based on the error.
     solver.bracket(f, x1, x2, method, iterations, error) is then used.
-    
-    @params:
-        g: searched function
-        x1, x2: bracketing points
-        f: derivative of g, approximated if not given
-        method: bracketing method to be used
-        iterations: maximum number of iterations before pure bisection is used
-        error: desired error* of |x1-x2| to terminate.
-            error*: (error + 5e-15*|x1+x2|), a combination of absolute and relative errors.
-    
-    @defaults:
-        method: None, which uses the default method for bracket.
-        iterations: 1000 iterations.
-        error: 1e-8 since usually impossible to search further due to roundoff errors.
-    
-    @return:
-        x: the result returned by solver.root_in().
     """
     
     """Set default iterations and error"""
@@ -321,8 +248,12 @@ def optimize(g, x1, x2,
     """Symmetric difference"""
     if f is None:
         def f(x):
+            # use g(x) = 0.5*(g(x+dx)+g(x-dx)) to avoid an additional evaluation of g
+            
             """======For seeing iterations======"""
-            if print_flag: print(f'\ng({x})  \t= {g(x)}') # use 0.5*(g(x+dx)+g(x-dx)) to avoid an additional evaluation of g
+            if print_flag: print(f'\ng({x})  \t= {g(x)}')
+            
+            if is_infinite(x) and is_infinite(g(x)): return g(x) * sign(x)
             
             dx = error + 1e-8*abs(x)
             return g(x+dx) - g(x-dx)

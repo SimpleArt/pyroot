@@ -1,5 +1,7 @@
-The function bracket from bracket.py finds a root of a function provided an initial bracket.
+solver contains two main methods: solver.root_in and solver.optimize.
 
-The Bracketing_Methods directory contains functions for each bracketing method available.
+- solver.root_in finds a bracketed root.
 
-For more detailed information, use bracket_help().
+- solver.optimize finds a bracketed local extrema using solver.root_in.
+
+For more information use solver.help().
