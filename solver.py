@@ -191,7 +191,7 @@ def root_in(f, x1, x2,
         
         """Compute next point"""
         if is_infinite(x2):
-            x = 0
+            x = 0.0
         elif is_infinite(x1):
             t = 0.5
             x = x2 + (1.0+abs(x2))*sign(x1)
@@ -252,7 +252,7 @@ def optimize(g, x1, x2,
             # use g(x) = 0.5*(g(x+dx)+g(x-dx)) to avoid an additional evaluation of g
             
             """======For seeing iterations======"""
-            if print_flag: print(f'\ng({x}) \t= {g(x)}')
+            if print_flag: print(f'g({x}) \t= {g(x)}')
             
             if is_infinite(x) and is_infinite(g(x)): return g(x) * sign(x)
             
