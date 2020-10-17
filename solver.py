@@ -13,14 +13,14 @@ def is_infinite(x):
 print_flag = True
 
 bracketing_method_dict = {
-    'bisection' : bisection
-    'binary search' : bisection
-    'regula falsi' : secant
-    'false position': secant
-    'secant' : secant
-    'dekker' : dekker
-    'brent' : brent
-    'chandrupatla' : chandrupatla
+    'bisection' : bisection,
+    'binary search' : bisection,
+    'regula falsi' : secant,
+    'false position': secant,
+    'secant' : secant,
+    'dekker' : dekker,
+    'brent' : brent,
+    'chandrupatla' : chandrupatla  # default
 }
 
 def help(input = None):
@@ -89,14 +89,15 @@ Use solver.help('methods') for more specific information, or check the github wi
 """)
     if input == 'methods':
         print("""bracketing_method_dict = {
-    'bisection'      : bisection
-    'binary search'  : bisection
-    'regula falsi'   : secant
-    'false position' : secant
-    'secant'         : secant
-    'dekker'         : dekker
-    'brent'          : brent
-    'chandrupatla'   : chandrupatla  # default
+    'bisection' : bisection,
+    'binary search' : bisection,
+    'regula falsi' : secant,
+    'false position': secant,
+    'secant' : secant,
+    'dekker' : dekker,
+    'brent' : brent,
+    'chandrupatla' : chandrupatla  # default
+}
 }
 
 bisection   : returns the midpoint of the interval.
@@ -202,7 +203,7 @@ def root_in(f, x1, x2,
         fx = f(x)
         
         """======For seeing iterations======"""
-        if print_flag: print(f'f({x})  \t= {fx}')
+        if print_flag: print(f'f({x}) \t= {fx}')
         
         """Swap to ensure x replaces x2"""
         if sign(f1) == sign(fx):
@@ -251,7 +252,7 @@ def optimize(g, x1, x2,
             # use g(x) = 0.5*(g(x+dx)+g(x-dx)) to avoid an additional evaluation of g
             
             """======For seeing iterations======"""
-            if print_flag: print(f'\ng({x})  \t= {g(x)}')
+            if print_flag: print(f'\ng({x}) \t= {g(x)}')
             
             if is_infinite(x) and is_infinite(g(x)): return g(x) * sign(x)
             
@@ -259,5 +260,5 @@ def optimize(g, x1, x2,
             return g(x+dx) - g(x-dx)
     
     x = root_in(f, x1, x2, method, iterations, error)
-    if print_flag: print(f'\ng({x})  \t= {g(x)}')
+    if print_flag: print(f'\ng({x}) \t= {g(x)}')
     return x
