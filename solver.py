@@ -13,14 +13,16 @@ def is_infinite(x):
 print_flag = True
 
 bracketing_method_dict = {
-    'bisection' : bisection,
-    'binary search' : bisection,
-    'regula falsi' : secant,
-    'false position': secant,
-    'secant' : secant,
-    'dekker' : dekker,
-    'brent' : brent,
-    'chandrupatla' : chandrupatla  # default
+    'bisection'      : bisection,
+    'binary search'  : bisection,
+    'regula falsi'   : secant,
+    'false position' : secant,
+    'secant'         : secant,
+    'muller'         : newton_quadratic,
+    'quadratic'      : newton_quadratic,
+    'dekker'         : dekker,
+    'brent'          : brent,
+    'chandrupatla'   : chandrupatla  # default
 }
 
 def help(input = None):
@@ -89,19 +91,22 @@ Use solver.help('methods') for more specific information, or check the github wi
 """)
     if input == 'methods':
         print("""bracketing_method_dict = {
-    'bisection' : bisection,
-    'binary search' : bisection,
-    'regula falsi' : secant,
-    'false position': secant,
-    'secant' : secant,
-    'dekker' : dekker,
-    'brent' : brent,
-    'chandrupatla' : chandrupatla  # default
+    'bisection'      : bisection,
+    'binary search'  : bisection,
+    'regula falsi'   : secant,
+    'false position' : secant,
+    'secant'         : secant,
+    'muller'         : newton_quadratic,
+    'quadratic'      : newton_quadratic,
+    'dekker'         : dekker,
+    'brent'          : brent,
+    'chandrupatla'   : chandrupatla  # default
 }
 }
 
 bisection   : returns the midpoint of the interval.
 secant      : returns the secant estimate of the root using x1 and x2.
+quadratic   : returns the quadratic interpolation estimate of the root using x1, x2, and x3.
 dekker      : returns the secant estimate of the root, using x2 and x3.
 brent       : returns the inverse quadratic interpolation estimate of the root when possible, using x1, x2, and x3.
 chandrupatla: returns the inverse quadratic interpolation estimate of the root when the interpolation is monotone, using x1, x2, and x3.
@@ -124,9 +129,9 @@ bracketing_method(x1, f1, x2, f2, x3, f3, x4, f4, t)
 
 def sign(x):
     """Returns the sign of x"""
-    if x > 0: return 1
+    if x > 0: return +1
     if x < 0: return -1
-    return 0
+    else: return 0
 
 def bracketing_method(x1, f1, x2, f2, x3, f3, x4, f4, t):
     """Interface for the bracketing method.
@@ -220,12 +225,24 @@ def root_in(f, x1, x2,
         else: bisection_fails = 0
         
         """Compute t for next iteration"""
-        t = bracketing_method(x1, f1, x2, f2, x3, f3, x, fx, t)
 
         """Adjust t to ensure convergence"""
+        if bisection_fails < 3:
+            # Try the current bracketing method
+            t = bracketing_method(x1, f1, x2, f2, x3, f3, x, fx, t)
         if bisection_fails == 3:
-            t *= 3
-            if t > 0.5: t = 0.5
+            # Try the Illinois method with 0.25*f1
+            temp = bracketing_method(x1, 0.25*f1, x2, f2, x3, f3, x, fx, t)
+            
+            # Resort to over-stepping if Illinois has no effect
+            if temp == bracketing_method(x1, f1, x2, f2, x3, f3, x, fx, t):
+                temp *= 4
+            
+            # Resort to bisection if over-stepped too much
+            if temp > 0.5:
+                temp = 0.5
+            
+            t = temp
         if bisection_fails == 4 or t >= 1 or t <= 0 or is_nan(t):
             t = 0.5
     
