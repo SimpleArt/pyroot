@@ -251,7 +251,9 @@ def optimize(g, x1, x2,
         def f(x):
             dx = error + 1e-8*abs(x)
             if not is_infinite(dx): return g(x+dx) - g(x-dx)
-            else: return g(x) * sign(x)
+            gx = g(x)
+            if is_infinite(gx): return gx * sign(x)
+            else: return 0.0
     
     x = root_in(f, x1, x2, method, iterations, error)
     """======For seeing iterations======"""
