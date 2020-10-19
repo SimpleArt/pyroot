@@ -249,16 +249,11 @@ def optimize(g, x1, x2,
     """Symmetric difference"""
     if f is None:
         def f(x):
-            # use g(x) = 0.5*(g(x+dx)+g(x-dx)) to avoid an additional evaluation of g
-            
-            """======For seeing iterations======"""
-            if print_flag: print(f'g({x}) \t= {g(x)}')
-            
-            if is_infinite(x) and is_infinite(g(x)): return g(x) * sign(x)
-            
             dx = error + 1e-8*abs(x)
-            return g(x+dx) - g(x-dx)
+            if not is_infinite(dx): return g(x+dx) - g(x-dx)
+            else: return g(x) * sign(x)
     
     x = root_in(f, x1, x2, method, iterations, error)
+    """======For seeing iterations======"""
     if print_flag: print(f'\ng({x}) \t= {g(x)}')
     return x
