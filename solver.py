@@ -10,7 +10,7 @@ def is_nan(x):
 def is_infinite(x):
     return abs(x) == float('inf')
 
-print_flag = True
+print_flag = False
 
 bracketing_method_dict = {
     'bisection'      : bisection,
@@ -155,7 +155,8 @@ def root_in(f, x1, x2,
                 iterations = None,
                 error = None,
                 f1 = None,
-                f2 = None):
+                f2 = None
+            ):
     """Run a bracketing method to find a root of f between x1 and x2.
     Requires f(x1) and f(x2) to have different signs.
     Otherwise only one iteration of the secant method is run.
@@ -250,10 +251,11 @@ def root_in(f, x1, x2,
     return (x1*f2-x2*f1)/(f2-f1)
 
 def optimize(g, x1, x2,
-                method = None,
-                iterations = None,
-                error = None,
-                f = None):
+                 method = None,
+                 iterations = None,
+                 error = None,
+                 f = None
+             ):
     """Runs an optimization method to find relative extrema of g between x1 and x2.
     Requires g to be increasing on one side and decreasing on the other.
     This is measured by f(x) = g(x+dx) - g(x-dx), where dx is based on the error.
@@ -276,3 +278,79 @@ def optimize(g, x1, x2,
     """======For seeing iterations======"""
     if print_flag: print(f'\ng({x}) \t= {g(x)}')
     return x
+
+def find_all_points(g, x1, x2,
+                        divisions = None,
+                        method = None,
+                        iterations = None,
+                        error = None,
+                        f = None
+                    ):
+    """Finds roots and relative extrema of f over the given interval
+    by dividing it into many subintervals and trying both root_in and
+    optimize, with a refined search for relative extrema if it is
+    known they exist in an interval despite optimization over that
+    interval being unusable.
+    """
+    
+    """Set defaults"""
+    if divisions is None:
+        divisions = 100
+    if error is None:
+        error = 1e-12
+    if f is None:
+        def f(x):
+            dx = error + 1e-8*abs(x)
+            if not is_infinite(dx): return g(x+dx) - g(x-dx)
+            gx = g(x)
+            if is_infinite(gx): return gx * sign(x)
+            else: return 0.0
+    
+    """Initialize variables"""
+    roots = []
+    extremas = []
+    n = divisions
+    x4 = x1 - (x2-x1)/n
+    x5 = x1
+    g4, g5 = g(x4), g(x5)
+    
+    # Run over each subinterval
+    for k in range(n):
+        
+        # Compute next points
+        x3, x4, x5 = x4, x5, x1 + (k+1)*(x2-x1)/n
+        g3, g4, g5 = g4, g5, g(x5)
+        x = optimize(g, x4, x5, method, iterations, error, f)
+        
+        # Extrema found
+        if sign(x-x4)*sign(x-x5) < 1:
+            
+            # Avoid duplicate points that land on an endpoint
+            if x != x5 or k == n-1: extremas.append(x)
+            gx = g(x)
+            
+            # Root found
+            if gx == 0: roots.append(x)
+            
+            # Root bracketed
+            else:
+                if sign(gx)*sign(g4) < 0: roots.append(root_in(g, x4, x, method, iterations, error, g4, gx))
+                if sign(gx)*sign(g5) < 0: roots.append(root_in(g, x5, x, method, iterations, error, g5, gx))
+        
+        # Extrema not found but exists
+        elif k > 0 and sign(g4-g3) == sign(g4-g5) and sign(extremas[-1]-x3)*sign(extremas[-1]-x4) == 1:
+            
+            # Do a refined search with half as many subdivisions
+            list1, list2 = find_all_points(g, x3, x5, n//2, method, iterations, error, f)
+            roots += list1
+            extremas += list2
+        
+        # Extrema not found but root exists
+        elif sign(g4)*sign(g5) < 1:
+            
+            x = root_in(g, x4, x5, method, iterations, error, g4, g5)
+            
+            # Avoid duplicate points that land on an endpoint
+            if x != x5 or k == n-1: roots.append(x)
+    
+    return roots, extremas
