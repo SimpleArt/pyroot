@@ -106,7 +106,7 @@ bracketing_method(x1, f1, x2, f2, x3, f3, x4, f4, t)
 
 @returns:
     t: the combination of x1 and x2 for the next iteration,
-       i.e. the next x is x1 + t*(x2-x1).
+       i.e. the next x is x2 + t*(x1-x2).
 """)
     else:
         print("""Usage:
@@ -198,23 +198,26 @@ def root_in(f, x1, x2,
             bracketing_method = bisection
         
         """Compute next point"""
-        if is_infinite(x1-x2):
-            # Overflow or both bounds infinite
-            t = 0.5
-            x = 0.0
-        elif is_infinite(x1):
-            # One side is infinite, set x = +/-1
-            # on the side which is infinite and
-            # then apply an exponential search.
+        
+        # One side is infinite, set x = +/-1
+        # on the side which is infinite and
+        # then apply an exponential search.
+        if is_infinite(x1):
             t = 0.5
             if sign(x1)*x2 < 1: x = float(sign(x1))
             else: x = 2*x2
+        
+        # Overflow
+        elif is_infinite(x1-x2):
+            t = 0.5
+            x = 0.0
+        
+        # Both bounds are finite and overflow
+        # does not occur.
+        # 1. If f(x) is infinite, use bisection.
+        # 2. Compute the next point.
+        # 3. Apply tolerance.
         else:
-            # Both bounds are finite and overflow
-            # does not occur.
-            # 1. If f(x) is infinite, use bisection.
-            # 2. Compute the next point.
-            # 3. Apply tolerance.
             if is_infinite(f1) or is_infinite(f2): t = 0.5
             x = x2 + t*(x1-x2)
             x += 0.25*(error+5e-15*abs(x1+x2))*sign(t-0.5)*sign(x2-x1)
@@ -239,8 +242,6 @@ def root_in(f, x1, x2,
         else: bisection_fails = 0
         
         """Compute t for next iteration"""
-
-        """Adjust t to ensure convergence"""
         
         # Try the current bracketing method
         if bisection_fails < 3:
@@ -253,8 +254,8 @@ def root_in(f, x1, x2,
             # Try the Illinois method
             temp = bracketing_method(x1, 0.25*f1, x2, f2, x3, f3, x, fx, t)
             
-            # Resort to over-stepping if Illinois has no effect
-            if temp == bracketing_method(x1, f1, x2, f2, x3, f3, x, fx, t):
+            # Resort to over-stepping if Illinois has no effect or is too slow
+            if 4*n > iterations or temp == bracketing_method(x1, f1, x2, f2, x3, f3, x, fx, t):
                 temp *= 4
             
             # Resort to bisection if over-stepped too much
@@ -265,6 +266,9 @@ def root_in(f, x1, x2,
         # or the result is out of bounds.
         if bisection_fails == 4 or t >= 1 or t <= 0 or is_nan(t):
             t = 0.5
+    
+    """======For seeing iterations======"""
+    if print_flag: print(f'{n}th iteration: {(x1*f2-x2*f1)/(f2-f1)}')
     
     """Return secant iteration"""
     return (x1*f2-x2*f1)/(f2-f1)
