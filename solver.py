@@ -26,22 +26,6 @@ bracketing_method_dict = {
 }
 
 def help(input = None):
-    if input is None:
-        print("""Usage:
-solver.root_in(f, x1, x2, {method, iterations, error, f1, f2})
-solver.optimize(g, x1, x2, {method, iterations, error, f})
-
-@params
-    g: the searched function for the local extrema.
-    f: the searched function for the root. Represents the derivative of g for solver.optimize.
-    x1, x2: initial bracket.
-    method: string name of the method used for solver.root_in.
-    iterations: limit on the number of iterations before binary search is used instead of the chosen method.
-    error: desired error of |x1-x2|.
-    f1, f2: optional initial values of f(x1) and f(x2).
-
-Use solver.help('root_in'), solver.help('optimize'), or solver.help('methods') for more specific information, or check the github wiki at https://github.com/SimpleArt/solver/wiki.
-""")
     if input == 'root_in':
         print("""Usage:
 solver.root_in(f, x1, x2, {method, iterations, error, f1, f2})
@@ -67,7 +51,7 @@ To avoid unnecessary binary search when the root is actually being approached ra
 
 Use solver.help('methods') for more specific information, or check the github wiki at https://github.com/SimpleArt/solver/wiki.
 """)
-    if input == 'optimize':
+    elif input == 'optimize':
         print("""Usage:
 solver.optimize(g, x1, x2, {method, iterations, error, f})
 
@@ -89,7 +73,7 @@ Attempts to find extreme values of g(x) between x1 and x2, given g(x) is increas
 
 Use solver.help('methods') for more specific information, or check the github wiki at https://github.com/SimpleArt/solver/wiki.
 """)
-    if input == 'methods':
+    elif input == 'methods':
         print("""bracketing_method_dict = {
     'bisection'      : bisection,
     'binary search'  : bisection,
@@ -101,7 +85,6 @@ Use solver.help('methods') for more specific information, or check the github wi
     'dekker'         : dekker,
     'brent'          : brent,
     'chandrupatla'   : chandrupatla  # default
-}
 }
 
 bisection   : returns the midpoint of the interval.
@@ -125,13 +108,28 @@ bracketing_method(x1, f1, x2, f2, x3, f3, x4, f4, t)
     t: the combination of x1 and x2 for the next iteration,
        i.e. the next x is x1 + t*(x2-x1).
 """)
+    else:
+        print("""Usage:
+solver.root_in(f, x1, x2, {method, iterations, error, f1, f2})
+solver.optimize(g, x1, x2, {method, iterations, error, f})
+
+@params
+    g: the searched function for the local extrema.
+    f: the searched function for the root. Represents the derivative of g for solver.optimize.
+    x1, x2: initial bracket.
+    method: string name of the method used for solver.root_in.
+    iterations: limit on the number of iterations before binary search is used instead of the chosen method.
+    error: desired error of |x1-x2|.
+    f1, f2: optional initial values of f(x1) and f(x2).
+
+Use solver.help('root_in'), solver.help('optimize'), or solver.help('methods') for more specific information, or check the github wiki at https://github.com/SimpleArt/solver/wiki.
+""")
 
 
 def sign(x):
     """Returns the sign of x"""
-    if x > 0: return +1
-    if x < 0: return -1
-    else: return 0
+    return (x>0) - (x<0)
+
 
 def bracketing_method(x1, f1, x2, f2, x3, f3, x4, f4, t):
     """Interface for the bracketing method.
@@ -150,6 +148,7 @@ def bracketing_method(x1, f1, x2, f2, x3, f3, x4, f4, t):
     
     pass
 
+
 def root_in(f, x1, x2,
                 method = None,
                 iterations = None,
@@ -159,7 +158,9 @@ def root_in(f, x1, x2,
             ):
     """Run a bracketing method to find a root of f between x1 and x2.
     Requires f(x1) and f(x2) to have different signs.
-    Otherwise only one iteration of the secant method is run.
+    Otherwise:
+    - only one iteration of the secant method is used.
+    - the returned result is out of [x1, x2].
     """
     
     """Set bracketing method to be used"""
@@ -173,6 +174,7 @@ def root_in(f, x1, x2,
     if error is None: error = 1e-16
     
     """Compute initial points"""
+    if x1 == x2: return x1
     if f1 is None: f1 = f(x1)
     if f2 is None: f2 = f(x2)
     if is_nan(f1) or is_nan(f2): return 0.5*(x1+x2)
@@ -189,22 +191,33 @@ def root_in(f, x1, x2,
     t = 0.5 # Safe start is bisection
     
     """Loop until convergence"""
-    while (is_infinite(x1) or is_infinite(x2) or abs(x1-x2) > error+5e-15*abs(x1+x2)) and f2 != 0 and not is_nan(f2):
+    while (is_infinite(x1) or abs(x1-x2) > error+5e-15*abs(x1+x2)) and f2 != 0 and not is_nan(f2):
         
         # Maximum number of iterations before pure bisection is used.
         if n == iterations:
             bracketing_method = bisection
         
         """Compute next point"""
-        if is_infinite(x2):
+        if is_infinite(x1-x2):
+            # Overflow or both bounds infinite
+            t = 0.5
             x = 0.0
         elif is_infinite(x1):
+            # One side is infinite, set x = +/-1
+            # on the side which is infinite and
+            # then apply an exponential search.
             t = 0.5
-            x = x2 + (1.0+abs(x2))*sign(x1)
+            if sign(x1)*x2 < 1: x = float(sign(x1))
+            else: x = 2*x2
         else:
-            if is_infinite(f1) or is_infinite(f2) or is_nan(t): t = 0.5
+            # Both bounds are finite and overflow
+            # does not occur.
+            # 1. If f(x) is infinite, use bisection.
+            # 2. Compute the next point.
+            # 3. Apply tolerance.
+            if is_infinite(f1) or is_infinite(f2): t = 0.5
             x = x2 + t*(x1-x2)
-            x += 0.25*(error+5e-15*abs(x1+x2))*sign(t-0.5)*sign(x2-x1) # Apply Tolerance
+            x += 0.25*(error+5e-15*abs(x1+x2))*sign(t-0.5)*sign(x2-x1)
         
         fx = f(x)
         
@@ -228,11 +241,16 @@ def root_in(f, x1, x2,
         """Compute t for next iteration"""
 
         """Adjust t to ensure convergence"""
+        
+        # Try the current bracketing method
         if bisection_fails < 3:
-            # Try the current bracketing method
             t = bracketing_method(x1, f1, x2, f2, x3, f3, x, fx, t)
+        
+        # Adjust the current bracketing
+        # method to encourage tight bounds.
         if bisection_fails == 3:
-            # Try the Illinois method with 0.25*f1
+            
+            # Try the Illinois method
             temp = bracketing_method(x1, 0.25*f1, x2, f2, x3, f3, x, fx, t)
             
             # Resort to over-stepping if Illinois has no effect
@@ -240,10 +258,11 @@ def root_in(f, x1, x2,
                 temp *= 4
             
             # Resort to bisection if over-stepped too much
-            if temp > 0.5:
-                temp = 0.5
-            
-            t = temp
+            t = min(0.5, temp)
+        
+        # Resort to bisection if bounds are
+        # not closing in after 4 iterations
+        # or the result is out of bounds.
         if bisection_fails == 4 or t >= 1 or t <= 0 or is_nan(t):
             t = 0.5
     
@@ -258,8 +277,13 @@ def optimize(g, x1, x2,
              ):
     """Runs an optimization method to find relative extrema of g between x1 and x2.
     Requires g to be increasing on one side and decreasing on the other.
-    This is measured by f(x) = g(x+dx) - g(x-dx), where dx is based on the error.
-    solver.bracket(f, x1, x2, method, iterations, error) is then used.
+    Otherwise:
+    - only one iteration of the secant method is used.
+    - the returned result is out of [x1, x2].
+    
+    The derivative is measured by f(x) = g(x+dx) - g(x-dx),
+    where dx is based on the error.
+    solver.bracket(f, x1, x2, method, iterations, error) is used to find the root.
     """
     
     """Set default iterations and error"""
@@ -278,6 +302,7 @@ def optimize(g, x1, x2,
     """======For seeing iterations======"""
     if print_flag: print(f'\ng({x}) \t= {g(x)}')
     return x
+
 
 def find_all_points(g, x1, x2,
                         divisions = None,
@@ -338,7 +363,7 @@ def find_all_points(g, x1, x2,
                 if sign(gx)*sign(g5) < 0: roots.append(root_in(g, x5, x, method, iterations, error, g5, gx))
         
         # Extrema not found but exists
-        elif k > 0 and sign(g4-g3) == sign(g4-g5) and sign(extremas[-1]-x3)*sign(extremas[-1]-x4) == 1:
+        elif k > 0 and sign(g4-g3)*sign(g4-g5) > -1 and sign(extremas[-1]-x3)*sign(extremas[-1]-x5) == 1:
             
             # Do a refined search with half as many subdivisions
             list1, list2 = find_all_points(g, x3, x5, n//2, method, iterations, error, f)
