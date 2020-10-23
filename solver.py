@@ -9,6 +9,8 @@ from math import sqrt
 import sys
 realmin = sys.float_info.min  # Smallest positive float
 realmax = sys.float_info.max  # Largest positive float
+sqrtmin = sqrt(realmin)       # Smallest positive root
+sqrtmax = sqrt(realmax)       # Largest positive root
 
 def is_nan(x):
     return x != x
@@ -37,7 +39,7 @@ def mean(x, y, bisection_flag):
     
     # Try arithmetic mean
     if bisection_flag:
-        if abs(y) < 1e300: return 0.5*(x+y)
+        if abs(y) < realmax/2: return 0.5*(x+y)
         # Overflow
         return 0.5*x+0.5*y
     
@@ -48,7 +50,7 @@ def mean(x, y, bisection_flag):
     # the sign of the larger of x and y.
     if sign(x) != sign(y):
         x = sign(y)*realmin
-    if abs(x) > 1e-150 and abs(y) < 1e150:
+    if abs(x) > sqrtmin and abs(y) < sqrtmax:
         return sign(x)*sqrt(x*y)
     # Under-/Over- Flow
     return sign(x)*sqrt(abs(x))*sqrt(abs(y))
@@ -241,25 +243,18 @@ def root_in(f, x1, x2,
         
         """Compute next point"""
         
-        # Overflow
-        if is_infinite(x1-x2):
-            t = 0.5
-            x = 0.0
-        
-        # Overflow does not occur.
-        # 1. If f(x) is infinite, use bisection.
+        # 1. If overflow occurs or f(x) is infinite, use bisection.
         # 2. Compute the next point.
         # 2.1. Alternate between arithmetic and geometric mean,
         # 2.2. or just use x = x2 + t*(x1-x2).
         # 3. Apply tolerance.
+        if is_infinite(x1-x2) or is_infinite(f1) or is_infinite(f2): t = 0.5
+        if t == 0.5:
+            x = mean(x1, x2, bisection_flag)
+            bisection_flag = not bisection_flag
         else:
-            if is_infinite(f1) or is_infinite(f2): t = 0.5
-            if t == 0.5:
-                x = mean(x1, x2, bisection_flag)
-                bisection_flag = not bisection_flag
-            else:
-                x = x2 + t*(x1-x2)
-            x += 0.25*(error+5e-15*abs(x1+x2))*sign(t-0.5)*sign(x2-x1)
+            x = x2 + t*(x1-x2)
+        x += 0.25*(error+1e-14*abs(x))*sign((x1-x)+(x2-x))
         
         fx = f(x)
         
