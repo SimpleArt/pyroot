@@ -332,8 +332,8 @@ def optimize(g, x1, x2,
     if f is None:
         def f(x):
             dx = error + 1e-8*abs(x)
-            if not is_infinite(dx): return g(x+dx) - g(x-dx)
             gx = g(x)
+            if abs(dx) < 1e100 and not is_infinite(gx): return g(x+dx) - g(x-dx)
             if is_infinite(gx): return gx * sign(x)
             else: return 0.0
     
