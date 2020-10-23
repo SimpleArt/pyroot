@@ -211,7 +211,7 @@ def root_in(f, x1, x2,
         bracketing_method = chandrupatla
     
     """Set default iterations and error"""
-    if iterations is None: iterations = 200
+    if iterations is None: iterations = 100
     if error is None: error = 1e-16
     
     """Compute initial points"""
