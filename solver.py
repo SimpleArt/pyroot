@@ -33,27 +33,29 @@ def mean(x, y, bisection_flag):
     to guarantee fast travel
     through all possible floats."""
     
-    # Sort x, y
+    # Sort x, y by absolute value
     if abs(x) > abs(y):
         x, y = y, x
     
-    # Try arithmetic mean
-    if bisection_flag:
+    # Try arithmetic mean if flag or the
+    # relative error of x and y are small
+    # enough to avoid square roots.
+    if bisection_flag or 0.5 < x/y:
         if abs(y) < realmax/2: return 0.5*(x+y)
         # Overflow
         return 0.5*x+0.5*y
     
-    # If geometric mean should be tried
-    # but there is a sign issue, then
-    # replace the smaller of x and y with
-    # the smallest nonzero float times
-    # the sign of the larger of x and y.
+    # If geometric mean should be tried but
+    # if there is a sign issue, then return
+    # 0. Will eventally force both points to
+    # have the same sign due to tolerance
+    # pulling it onto one side.
     if sign(x) != sign(y):
-        x = sign(y)*realmin
+        return 0.0
     if abs(x) > sqrtmin and abs(y) < sqrtmax:
-        return sign(x)*sqrt(x*y)
+        return sign(y)*sqrt(x*y)
     # Under-/Over- Flow
-    return sign(x)*sqrt(abs(x))*sqrt(abs(y))
+    return sign(y)*sqrt(abs(x))*sqrt(abs(y))
 
 print_iterations = False
 print_result     = False
@@ -74,20 +76,24 @@ bracketing_method_dict = {
 def help(input = None):
     if input == 'root_in':
         print("""Usage:
-solver.root_in(f, x1, x2, {method, iterations, error, f1, f2})
+solver.root_in(f, x1, x2, {method, iterations, abs_err_1, abs_err_2, rel_err, f1, f2})
 
 @params
     f: the searched function for the root.
     x1, x2: initial bracket.
     method: string name of the method used for solver.root_in.
     iterations: limit on the number of iterations before binary search is used instead of the chosen method.
-    error: desired error of |x1-x2|.
+    abs_err_1: desired error of |x1-x2|.
+    abs_err_2: larger initial error searched for.
+    rel_err: desired relative error of |x1-x2|.
     f1, f2: optional initial values of f(x1) and f(x2).
 
 @defaults
     method: 'chandrupatla'
     iterations: 200
-    error: 1e-14
+    abs_err_1: 1e-14
+    abs_err_2: 1e+16 * abs_err_1
+    rel_err: 1e-14
 
 Attempts to solve f(x) = 0 between x1 and x2, given f(x1) and f(x2) have different signs, where convergence to a root can be guaranteed using binary search, a.k.a. bisection.
 
@@ -99,7 +105,7 @@ Use solver.help('methods') for more specific information, or check the github wi
 """)
     elif input == 'optimize':
         print("""Usage:
-solver.optimize(g, x1, x2, {method, iterations, error, f})
+solver.optimize(g, x1, x2, {method, iterations, abs_err_1, abs_err_2, rel_err, f})
 
 @params
     g: the searched function for the local extrema.
@@ -107,13 +113,16 @@ solver.optimize(g, x1, x2, {method, iterations, error, f})
     f: the searched function for the root. Represents the derivative of g for solver.optimize.
     method: string name of the method used for solver.root_in.
     iterations: limit on the number of iterations before binary search is used instead of the chosen method.
-    error: desired error of |x1-x2|.
+    abs_err_1: desired error of |x1-x2|.
+    abs_err_2: larger initial error searched for.
+    rel_err: desired relative error of |x1-x2|.
 
 @defaults
-    f: g(x+dx) - g(x-dx), where dx = error + 1e-8*abs(x)
+    f: g(x+dx) - g(x-dx), where dx = abs_err_1 + rel_err*abs(x)
     method: 'chandrupatla'
     iterations: 200
-    error: 1e-8
+    abs_err_1: 1e-8
+    err_1: 1e+10 * abs_err_1
 
 Attempts to find extreme values of g(x) between x1 and x2, given g(x) is increasing at one point and decreasing at the other. Uses solver.root_in to find the root of f(x), the derivative of g(x).
 
@@ -156,8 +165,8 @@ bracketing_method(x1, f1, x2, f2, x3, f3, x4, f4, t)
 """)
     else:
         print("""Usage:
-solver.root_in(f, x1, x2, {method, iterations, error, f1, f2})
-solver.optimize(g, x1, x2, {method, iterations, error, f})
+solver.root_in(f, x1, x2, {method, iterations, abs_err_1, abs_err_2, rel_err, f1, f2})
+solver.optimize(g, x1, x2, {method, iterations, abs_err_1, abs_err_2, rel_err, f})
 
 @params
     g: the searched function for the local extrema.
@@ -165,7 +174,9 @@ solver.optimize(g, x1, x2, {method, iterations, error, f})
     x1, x2: initial bracket.
     method: string name of the method used for solver.root_in.
     iterations: limit on the number of iterations before binary search is used instead of the chosen method.
-    error: desired error of |x1-x2|.
+    abs_err_1: desired error of |x1-x2|.
+    abs_err_2: larger initial error searched for.
+    rel_err: desired relative error of |x1-x2|.
     f1, f2: optional initial values of f(x1) and f(x2).
 
 Use solver.help('root_in'), solver.help('optimize'), or solver.help('methods') for more specific information, or check the github wiki at https://github.com/SimpleArt/solver/wiki.
@@ -193,7 +204,9 @@ def bracketing_method(x1, f1, x2, f2, x3, f3, x4, f4, t):
 def root_in(f, x1, x2,
                 method = None,
                 iterations = None,
-                error = None,
+                abs_err_1 = None,
+                abs_err_2 = None,
+                rel_err = None,
                 f1 = None,
                 f2 = None
             ):
@@ -212,7 +225,10 @@ def root_in(f, x1, x2,
     
     """Set default iterations and error"""
     if iterations is None: iterations = 100
-    if error is None: error = 1e-16
+    if abs_err_1 is None: abs_err_1 = 1e-14
+    if abs_err_2 is None: abs_err_2 = 1e+16 * abs_err_1
+    if abs_err_1 > abs_err_2: abs_err_1, abs_err_2 = abs_err_2, abs_err_1
+    if rel_err is None or rel_err < 1e-14: rel_err = 1e-14
     
     """Compute initial points"""
     if x1 == x2: return x1
@@ -235,7 +251,7 @@ def root_in(f, x1, x2,
     bisection_flag = True
     
     """Loop until convergence"""
-    while (is_infinite(x1) or abs(x1-x2) > error+5e-15*abs(x1+x2)) and f2 != 0 and not is_nan(f2):
+    while (is_infinite(x1) or abs(x1-x2) > abs_err_1 + 0.5*rel_err*abs(x1+x2)) and f2 != 0 and not is_nan(f2):
         
         # Maximum number of iterations before pure bisection is used.
         if n == iterations:
@@ -251,10 +267,10 @@ def root_in(f, x1, x2,
         if is_infinite(x1-x2) or is_infinite(f1) or is_infinite(f2): t = 0.5
         if t == 0.5:
             x = mean(x1, x2, bisection_flag)
-            bisection_flag = not bisection_flag
         else:
             x = x2 + t*(x1-x2)
-        x += 0.25*(error+1e-14*abs(x))*sign((x1-x)+(x2-x))
+        if abs(x1-x2) < 2*abs_err_2: abs_err_2 = abs_err_1
+        x += 0.25*(abs_err_2 + 0.5*rel_err*abs(x))*sign((x1-x)+(x2-x))
         
         fx = f(x)
         
@@ -272,8 +288,12 @@ def root_in(f, x1, x2,
         
         """Update counters"""
         n += 1
-        if t < 0.5 or (x1-x2)/(x1-x3) > 0.75: bisection_fails += 1
+        if t < 0.5: bisection_fails += 1
         else: bisection_fails = 0
+        if t == 0.5 and (x1-x2)/(x1-x3) > 0.25:
+            bisection_flag = not bisection_flag
+            if (x1-x2)/(x1-x3) > 0.75:
+                bisection_fails += 1
         
         """Compute t for next iteration"""
         
@@ -305,13 +325,16 @@ def root_in(f, x1, x2,
     if print_result: print(f'{n}th iteration: {(x1*f2-x2*f1)/(f2-f1)}')
     
     """Return secant iteration"""
-    if f2 == 0: return x2
+    if f2 == 0 or is_nan(f2): return x2
     return (x1*f2-x2*f1)/(f2-f1)
+
 
 def optimize(g, x1, x2,
                  method = None,
                  iterations = None,
-                 error = None,
+                 abs_err_1 = None,
+                 abs_err_2 = None,
+                 rel_err = None,
                  f = None
              ):
     """Runs an optimization method to find relative extrema of g between x1 and x2.
@@ -322,23 +345,25 @@ def optimize(g, x1, x2,
     
     The derivative is measured by f(x) = g(x+dx) - g(x-dx),
     where dx is based on the error.
-    solver.bracket(f, x1, x2, method, iterations, error) is used to find the root.
+    solver.bracket(f, x1, x2, method, iterations, abs_err_1, abs_err_2, rel_err) is used to find the root.
     """
     
     """Set default error"""
-    if error is None: error = 1e-8
+    if abs_err_1 is None: abs_err_1 = 1e-7
+    if rel_err is None: rel_err = 1e-7
+    if rel_err < 1e-14: rel_err = 1e-14
     
     """Symmetric difference"""
     if f is None:
         def f(x):
-            dx = error + 1e-8*abs(x)
+            dx = abs_err_1 + rel_err*abs(x)
             gx = g(x)
             if abs(dx) < 1e100 and not is_infinite(gx): return g(x+dx) - g(x-dx)
             if is_infinite(gx): return gx * sign(x)
             else: return 0.0
     
-    x = root_in(f, x1, x2, method, iterations, error)
-    """======For seeing iterations======"""
+    x = root_in(f, x1, x2, method, iterations, abs_err_1, abs_err_2, rel_err)
+    """======For seeing final result======"""
     if print_result: print(f'\ng({x}) \t= {g(x)}')
     return x
 
@@ -347,7 +372,7 @@ def find_all_points(g, x1, x2,
                         divisions = None,
                         method = None,
                         iterations = None,
-                        error = None,
+                        err = None,
                         f = None
                     ):
     """Finds roots and relative extrema of f over the given interval
@@ -360,11 +385,11 @@ def find_all_points(g, x1, x2,
     """Set defaults"""
     if divisions is None:
         divisions = 100
-    if error is None:
-        error = 1e-12
+    if err is None:
+        err = 1e-12
     if f is None:
         def f(x):
-            dx = error + 1e-8*abs(x)
+            dx = err + 1e-8*abs(x)
             if not is_infinite(dx): return g(x+dx) - g(x-dx)
             gx = g(x)
             if is_infinite(gx): return gx * sign(x)
@@ -384,7 +409,7 @@ def find_all_points(g, x1, x2,
         # Compute next points
         x3, x4, x5 = x4, x5, x1 + (k+1)*(x2-x1)/n
         g3, g4, g5 = g4, g5, g(x5)
-        x = optimize(g, x4, x5, method, iterations, error, f)
+        x = optimize(g, x4, x5, method, iterations, err, f)
         
         # Extrema found
         if sign(x-x4)*sign(x-x5) < 1:
@@ -398,21 +423,21 @@ def find_all_points(g, x1, x2,
             
             # Root bracketed
             else:
-                if sign(gx)*sign(g4) < 0: roots.append(root_in(g, x4, x, method, iterations, error, g4, gx))
-                if sign(gx)*sign(g5) < 0: roots.append(root_in(g, x5, x, method, iterations, error, g5, gx))
+                if sign(gx)*sign(g4) < 0: roots.append(root_in(g, x4, x, method, iterations, err, g4, gx))
+                if sign(gx)*sign(g5) < 0: roots.append(root_in(g, x5, x, method, iterations, err, g5, gx))
         
         # Extrema not found but exists
         elif k > 0 and sign(g4-g3)*sign(g4-g5) > -1 and sign(extremas[-1]-x3)*sign(extremas[-1]-x5) == 1:
             
             # Do a refined search with half as many subdivisions
-            list1, list2 = find_all_points(g, x3, x5, n//2, method, iterations, error, f)
+            list1, list2 = find_all_points(g, x3, x5, n//2, method, iterations, err, f)
             roots += list1
             extremas += list2
         
         # Extrema not found but root exists
         elif sign(g4)*sign(g5) < 1:
             
-            x = root_in(g, x4, x5, method, iterations, error, g4, g5)
+            x = root_in(g, x4, x5, method, iterations, err, g4, g5)
             
             # Avoid duplicate points that land on an endpoint
             if x != x5 or k == n-1: roots.append(x)
