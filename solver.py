@@ -83,9 +83,10 @@ solver.root_in(f, x1, x2, {method, iterations, abs_err_1, abs_err_2, rel_err, f1
     x1, x2: initial bracket.
     method: string name of the method used for solver.root_in.
     iterations: limit on the number of iterations before binary search is used instead of the chosen method.
-    abs_err_1: desired error of |x1-x2|.
-    abs_err_2: larger initial error searched for.
-    rel_err: desired relative error of |x1-x2|.
+    abs_err_1: desired absolute error of |x1-x2|.
+    rel_err_1: desired relative error of |x1-x2|.
+    abs_err_2: larger initial absolute error searched for.
+    rel_err_2: larger initial relative error searched for.
     f1, f2: optional initial values of f(x1) and f(x2).
 
 @defaults
@@ -113,9 +114,10 @@ solver.optimize(g, x1, x2, {method, iterations, abs_err_1, abs_err_2, rel_err, f
     f: the searched function for the root. Represents the derivative of g for solver.optimize.
     method: string name of the method used for solver.root_in.
     iterations: limit on the number of iterations before binary search is used instead of the chosen method.
-    abs_err_1: desired error of |x1-x2|.
-    abs_err_2: larger initial error searched for.
-    rel_err: desired relative error of |x1-x2|.
+    abs_err_1: desired absolute error of |x1-x2|.
+    rel_err_1: desired relative error of |x1-x2|.
+    abs_err_2: larger initial absolute error searched for.
+    rel_err_2: larger initial relative error searched for.
 
 @defaults
     f: g(x+dx) - g(x-dx), where dx = abs_err_1 + rel_err*abs(x)
@@ -174,9 +176,10 @@ solver.optimize(g, x1, x2, {method, iterations, abs_err_1, abs_err_2, rel_err, f
     x1, x2: initial bracket.
     method: string name of the method used for solver.root_in.
     iterations: limit on the number of iterations before binary search is used instead of the chosen method.
-    abs_err_1: desired error of |x1-x2|.
-    abs_err_2: larger initial error searched for.
-    rel_err: desired relative error of |x1-x2|.
+    abs_err_1: desired absolute error of |x1-x2|.
+    rel_err_1: desired relative error of |x1-x2|.
+    abs_err_2: larger initial absolute error searched for.
+    rel_err_2: larger initial relative error searched for.
     f1, f2: optional initial values of f(x1) and f(x2).
 
 Use solver.help('root_in'), solver.help('optimize'), or solver.help('methods') for more specific information, or check the github wiki at https://github.com/SimpleArt/solver/wiki.
@@ -205,8 +208,9 @@ def root_in(f, x1, x2,
                 method = None,
                 iterations = None,
                 abs_err_1 = None,
+                rel_err_1 = None,
                 abs_err_2 = None,
-                rel_err = None,
+                rel_err_2 = None,
                 f1 = None,
                 f2 = None
             ):
@@ -226,9 +230,11 @@ def root_in(f, x1, x2,
     """Set default iterations and error"""
     if iterations is None: iterations = 100
     if abs_err_1 is None: abs_err_1 = 1e-14
-    if abs_err_2 is None: abs_err_2 = 1e+16 * abs_err_1
+    if abs_err_2 is None: abs_err_2 = 10
+    if rel_err_1 is None or rel_err_1 < 1e-14: rel_err_1 = 1e-14
+    if rel_err_2 is None or rel_err_2 < 1e-14: rel_err_2 = 1
     if abs_err_1 > abs_err_2: abs_err_1, abs_err_2 = abs_err_2, abs_err_1
-    if rel_err is None or rel_err < 1e-14: rel_err = 1e-14
+    if rel_err_1 > rel_err_2: rel_err_1, rel_err_2 = rel_err_2, rel_err_1
     
     """Compute initial points"""
     if x1 == x2: return x1
@@ -251,7 +257,7 @@ def root_in(f, x1, x2,
     bisection_flag = True
     
     """Loop until convergence"""
-    while (is_infinite(x1) or abs(x1-x2) > abs_err_1 + 0.5*rel_err*abs(x1+x2)) and f2 != 0 and not is_nan(f2):
+    while (is_infinite(x1) or abs(x1-x2) > abs_err_1 + 0.5*rel_err_1*abs(x1+x2)) and f2 != 0 and not is_nan(f2):
         
         # Maximum number of iterations before pure bisection is used.
         if n == iterations:
@@ -269,8 +275,11 @@ def root_in(f, x1, x2,
             x = mean(x1, x2, bisection_flag)
         else:
             x = x2 + t*(x1-x2)
-        if abs(x1-x2) < 2*abs_err_2: abs_err_2 = abs_err_1
-        x += 0.25*(abs_err_2 + 0.5*rel_err*abs(x))*sign((x1-x)+(x2-x))
+        if abs(x1-x2) < 2*abs_err_2:
+            abs_err_2 = abs_err_1
+        if abs(x1-x2) < 2*rel_err_2*abs(x):
+            rel_err_2 = rel_err_1
+        x += 0.25*(abs_err_2 + rel_err_2*abs(x))*sign((x1-x)+(x2-x))
         
         fx = f(x)
         
@@ -333,8 +342,9 @@ def optimize(g, x1, x2,
                  method = None,
                  iterations = None,
                  abs_err_1 = None,
+                 rel_err_1 = None,
                  abs_err_2 = None,
-                 rel_err = None,
+                 rel_err_2 = None,
                  f = None
              ):
     """Runs an optimization method to find relative extrema of g between x1 and x2.
@@ -349,14 +359,15 @@ def optimize(g, x1, x2,
     """
     
     """Set default error"""
-    if abs_err_1 is None: abs_err_1 = 1e-7
-    if rel_err is None: rel_err = 1e-7
-    if rel_err < 1e-14: rel_err = 1e-14
+    if abs_err_1 is None: abs_err_1 = 1e-14
+    if rel_err_1 is None or rel_err_1 < 1e-14: rel_err_1 = 1e-14
+    if abs_err_2 is not None and abs_err_1 > abs_err_2: abs_err_1, abs_err_2 = abs_err_2, abs_err_1
+    if rel_err_2 is not None and rel_err_1 > rel_err_2: rel_err_1, rel_err_2 = rel_err_2, rel_err_1
     
     """Symmetric difference"""
     if f is None:
         def f(x):
-            dx = abs_err_1 + rel_err*abs(x)
+            dx = abs_err_1 + rel_err_1*abs(x)
             gx = g(x)
             if abs(dx) < 1e100 and not is_infinite(gx): return g(x+dx) - g(x-dx)
             if is_infinite(gx): return gx * sign(x)
