@@ -229,12 +229,22 @@ def root_in(f, x1, x2,
     
     """Set default iterations and error"""
     if iterations is None: iterations = 100
+    
+    # Set default errors
     if abs_err_1 is None: abs_err_1 = 1e-14
+    if rel_err_1 is None: rel_err_1 = 1e-14
     if abs_err_2 is None: abs_err_2 = 10
-    if rel_err_1 is None or rel_err_1 < 1e-14: rel_err_1 = 1e-14
-    if rel_err_2 is None or rel_err_2 < 1e-14: rel_err_2 = 1
+    if rel_err_2 is None: rel_err_2 = 1
+    
+    # Swap errors if necessary
     if abs_err_1 > abs_err_2: abs_err_1, abs_err_2 = abs_err_2, abs_err_1
     if rel_err_1 > rel_err_2: rel_err_1, rel_err_2 = rel_err_2, rel_err_1
+    
+    # Set minimum errors if necessary
+    if abs_err_1 < realmin: abs_err_1 = realmin
+    if rel_err_1 < 1e-14: rel_err_1 = 1e-14
+    if abs_err_2 < realmin: abs_err_2 = realmin
+    if rel_err_2 < 1e-14: rel_err_2 = 1e-14
     
     """Compute initial points"""
     if x1 == x2: return x1
@@ -299,7 +309,7 @@ def root_in(f, x1, x2,
         n += 1
         if t < 0.5: bisection_fails += 1
         else: bisection_fails = 0
-        if t == 0.5 and (x1-x2)/(x1-x3) > 0.25:
+        if t == 0.5 and (x1-x2)/(x1-x3) > 0.25 or is_infinite(x1):
             bisection_flag = not bisection_flag
             if (x1-x2)/(x1-x3) > 0.75:
                 bisection_fails += 1
@@ -359,10 +369,12 @@ def optimize(g, x1, x2,
     """
     
     """Set default error"""
-    if abs_err_1 is None: abs_err_1 = 1e-14
-    if rel_err_1 is None or rel_err_1 < 1e-14: rel_err_1 = 1e-14
+    if abs_err_1 is None: abs_err_1 = 1e-8
+    if rel_err_1 is None: rel_err_1 = 1e-8
     if abs_err_2 is not None and abs_err_1 > abs_err_2: abs_err_1, abs_err_2 = abs_err_2, abs_err_1
     if rel_err_2 is not None and rel_err_1 > rel_err_2: rel_err_1, rel_err_2 = rel_err_2, rel_err_1
+    if abs_err_1 < realmin: abs_err_1 = realmin
+    if rel_err_1 < 1e-12: rel_err_1 = 1e-12
     
     """Symmetric difference"""
     if f is None:
@@ -373,7 +385,7 @@ def optimize(g, x1, x2,
             if is_infinite(gx): return gx * sign(x)
             else: return 0.0
     
-    x = root_in(f, x1, x2, method, iterations, abs_err_1, abs_err_2, rel_err)
+    x = root_in(f, x1, x2, method, iterations, abs_err_1, rel_err_1, abs_err_2, rel_err_2)
     """======For seeing final result======"""
     if print_result: print(f'\ng({x}) \t= {g(x)}')
     return x
