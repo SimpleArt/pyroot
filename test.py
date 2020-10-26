@@ -3,9 +3,7 @@ solver.print_result = True
 inf = float('inf')
 
 methods = [
-    'chandrupatla',
-    'brent',
-    'muller'
+    'chandrupatla'
 ]
 
 def test(str, f, x1, x2):

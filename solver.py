@@ -33,6 +33,10 @@ def mean(x, y, bisection_flag):
     to guarantee fast travel
     through all possible floats."""
     
+    # Check 0 if it's in the interval
+    if sign(x)*sign(y) < 0:
+        return 0.0
+    
     # Sort x, y by absolute value
     if abs(x) > abs(y):
         x, y = y, x
@@ -50,8 +54,6 @@ def mean(x, y, bisection_flag):
     # 0. Will eventally force both points to
     # have the same sign due to tolerance
     # pulling it onto one side.
-    if sign(x) != sign(y):
-        return 0.0
     if abs(x) > sqrtmin and abs(y) < sqrtmax:
         return sign(y)*sqrt(x*y)
     # Under-/Over- Flow
@@ -230,22 +232,6 @@ def root_in(f, x1, x2,
     """Set default iterations and error"""
     if iterations is None: iterations = 100
     
-    # Set default errors
-    if abs_err_1 is None: abs_err_1 = 1e-14
-    if rel_err_1 is None: rel_err_1 = 1e-14
-    if abs_err_2 is None: abs_err_2 = 10
-    if rel_err_2 is None: rel_err_2 = 1
-    
-    # Swap errors if necessary
-    if abs_err_1 > abs_err_2: abs_err_1, abs_err_2 = abs_err_2, abs_err_1
-    if rel_err_1 > rel_err_2: rel_err_1, rel_err_2 = rel_err_2, rel_err_1
-    
-    # Set minimum errors if necessary
-    if abs_err_1 < realmin: abs_err_1 = realmin
-    if rel_err_1 < 1e-14: rel_err_1 = 1e-14
-    if abs_err_2 < realmin: abs_err_2 = realmin
-    if rel_err_2 < 1e-14: rel_err_2 = 1e-14
-    
     """Compute initial points"""
     if x1 == x2: return x1
     if is_infinite(x1):
@@ -258,6 +244,25 @@ def root_in(f, x1, x2,
     if f1 == 0: return x1
     if f2 == 0: return x2
     if sign(f1) == sign(f2): return (f2*x1-f1*x2)/(f2-f1)
+    
+    """Set default iterations and error"""
+    if iterations is None: iterations = 100
+    
+    # Set default errors
+    if abs_err_1 is None: abs_err_1 = min(1e-14, 1e-14*abs(x2-x1))
+    if rel_err_1 is None: rel_err_1 = 1e-14
+    if abs_err_2 is None: abs_err_2 = min(0.01, 0.01*abs(x2-x1))
+    if rel_err_2 is None: rel_err_2 = 0.01
+    
+    # Swap errors if necessary
+    if abs_err_1 > abs_err_2: abs_err_1, abs_err_2 = abs_err_2, abs_err_1
+    if rel_err_1 > rel_err_2: rel_err_1, rel_err_2 = rel_err_2, rel_err_1
+    
+    # Set minimum errors if necessary
+    if abs_err_1 < realmin: abs_err_1 = realmin
+    if rel_err_1 < 1e-14: rel_err_1 = 1e-14
+    if abs_err_2 < realmin: abs_err_2 = realmin
+    if rel_err_2 < 1e-14: rel_err_2 = 1e-14
     
     """Initialize variables"""
     n = 0
@@ -285,9 +290,8 @@ def root_in(f, x1, x2,
             x = mean(x1, x2, bisection_flag)
         else:
             x = x2 + t*(x1-x2)
-        if abs(x1-x2) < 2*abs_err_2:
+        if abs(x1-x2) < 8*(abs_err_2 + rel_err_2*abs(x)):
             abs_err_2 = abs_err_1
-        if abs(x1-x2) < 2*rel_err_2*abs(x):
             rel_err_2 = rel_err_1
         x += 0.25*(abs_err_2 + rel_err_2*abs(x))*sign((x1-x)+(x2-x))
         
