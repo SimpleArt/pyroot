@@ -293,7 +293,7 @@ def root_in(f, x1, x2,
         if abs(x1-x2) < 8*(abs_err_2 + rel_err_2*abs(x)):
             abs_err_2 = abs_err_1
             rel_err_2 = rel_err_1
-        x += 0.25*(abs_err_2 + rel_err_2*abs(x))*sign((x1-x)+(x2-x))
+        x += 0.25*(abs_err_2 + rel_err_2*abs(x))*sign(0.5*(x1+x2)-x)
         
         fx = f(x)
         
