@@ -1,9 +1,11 @@
-from Bracketing_Methods.bisection        import bisection
-from Bracketing_Methods.secant           import secant
-from Bracketing_Methods.dekker           import dekker
-from Bracketing_Methods.brent            import brent
-from Bracketing_Methods.newton_quadratic import newton_quadratic
-from Bracketing_Methods.chandrupatla     import chandrupatla
+from Bracketing_Methods.bisection              import bisection
+from Bracketing_Methods.secant                 import secant
+from Bracketing_Methods.dekker                 import dekker
+from Bracketing_Methods.brent                  import brent
+from Bracketing_Methods.newton_quadratic       import newton_quadratic
+from Bracketing_Methods.chandrupatla           import chandrupatla
+from Bracketing_Methods.chandrupatla_quadratic import chandrupatla_quadratic
+from Bracketing_Methods.chandrupatla_mixed     import chandrupatla_mixed
 
 from math import sqrt
 import sys
@@ -11,6 +13,9 @@ realmin = sys.float_info.min  # Smallest positive float
 realmax = sys.float_info.max  # Largest positive float
 sqrtmin = sqrt(realmin)       # Smallest positive root
 sqrtmax = sqrt(realmax)       # Largest positive root
+print_iterations  = False  # Printing intermediate iterations
+print_result      = False  # Printing the final iteration
+return_iterations = False  # Return the number of iterations with the result
 
 def is_nan(x):
     return x != x
@@ -26,7 +31,7 @@ def sign(x):
     """
     return (x>0) - (x<0)
 
-def mean(x, y, bisection_flag):
+def mean(x, y, flag):
     """Alternates between using
     - arithmetic means and
     - geometric means
@@ -44,7 +49,8 @@ def mean(x, y, bisection_flag):
     # Try arithmetic mean if flag or the
     # relative error of x and y are small
     # enough to avoid square roots.
-    if bisection_flag or 0.5 < x/y:
+    if flag or 0.25 < x/y:
+        if x/y < 0.125: return 0.75*x+0.25*y
         if abs(y) < realmax/2: return 0.5*(x+y)
         # Overflow
         return 0.5*x+0.5*y
@@ -59,20 +65,22 @@ def mean(x, y, bisection_flag):
     # Under-/Over- Flow
     return sign(y)*sqrt(abs(x))*sqrt(abs(y))
 
-print_iterations = False
-print_result     = False
-
 bracketing_method_dict = {
-    'bisection'      : bisection,
-    'binary search'  : bisection,
-    'regula falsi'   : secant,
-    'false position' : secant,
-    'secant'         : secant,
-    'muller'         : newton_quadratic,
-    'quadratic'      : newton_quadratic,
-    'dekker'         : dekker,
-    'brent'          : brent,
-    'chandrupatla'   : chandrupatla  # default
+    'bisection'              : bisection,
+    'binary search'          : bisection,
+    'regula falsi'           : secant,
+    'false position'         : secant,
+    'secant'                 : secant,
+    'muller'                 : newton_quadratic,
+    'quadratic'              : newton_quadratic,
+    'dekker'                 : dekker,
+    'brent'                  : brent,
+    'iq'                     : brent,
+    'inverse quadratic'      : brent,
+    'chandrupatla'           : chandrupatla,
+    'chandrupatla quadratic' : chandrupatla_quadratic,
+    'quadratic safe'         : chandrupatla_quadratic,
+    'chandrupatla mixed'     : chandrupatla_mixed       # default
 }
 
 def help(input = None):
@@ -134,16 +142,20 @@ Use solver.help('methods') for more specific information, or check the github wi
 """)
     elif input == 'methods':
         print("""bracketing_method_dict = {
-    'bisection'      : bisection,
-    'binary search'  : bisection,
-    'regula falsi'   : secant,
-    'false position' : secant,
-    'secant'         : secant,
-    'muller'         : newton_quadratic,
-    'quadratic'      : newton_quadratic,
-    'dekker'         : dekker,
-    'brent'          : brent,
-    'chandrupatla'   : chandrupatla  # default
+    'bisection'              : bisection,
+    'binary search'          : bisection,
+    'regula falsi'           : secant,
+    'false position'         : secant,
+    'secant'                 : secant,
+    'muller'                 : newton_quadratic,
+    'quadratic'              : newton_quadratic,
+    'dekker'                 : dekker,
+    'brent'                  : brent,
+    'iq'                     : brent,
+    'inverse quadratic'      : brent,
+    'chandrupatla'           : chandrupatla,
+    'chandrupatla quadratic' : chandrupatla_quadratic,
+    'chandrupatla mixed'     : chandrupatla_mixed       # default
 }
 
 bisection   : returns the midpoint of the interval.
@@ -227,7 +239,7 @@ def root_in(f, x1, x2,
     if method in bracketing_method_dict:
         bracketing_method = bracketing_method_dict[method]
     else:
-        bracketing_method = chandrupatla
+        bracketing_method = bracketing_method_dict['chandrupatla mixed']
     
     """Set default iterations and error"""
     if iterations is None: iterations = 100
@@ -240,19 +252,27 @@ def root_in(f, x1, x2,
         x2 = sign(x2)*realmax
     if f1 is None: f1 = f(x1)
     if f2 is None: f2 = f(x2)
-    if is_nan(f1) or is_nan(f2): return 0.5*(x1+x2)
-    if f1 == 0: return x1
-    if f2 == 0: return x2
-    if sign(f1) == sign(f2): return (f2*x1-f1*x2)/(f2-f1)
+    if is_nan(f1) or is_nan(f2) or f1 == f2:
+        if return_iterations: return 0
+        return 0.5*(x1+x2)
+    if f1 == 0:
+        if return_iterations: return 0
+        return x1
+    if f2 == 0:
+        if return_iterations: return 0
+        return x2
+    if sign(f1) == sign(f2):
+        if return_iterations: return 0
+        return (f2*x1-f1*x2)/(f2-f1)
     
     """Set default iterations and error"""
     if iterations is None: iterations = 100
     
     # Set default errors
-    if abs_err_1 is None: abs_err_1 = min(1e-14, 1e-14*abs(x2-x1))
+    if abs_err_1 is None: abs_err_1 = 1e-14 * min(1, abs(x2-x1))
     if rel_err_1 is None: rel_err_1 = 1e-14
-    if abs_err_2 is None: abs_err_2 = min(0.01, 0.01*abs(x2-x1))
-    if rel_err_2 is None: rel_err_2 = 0.01
+    if abs_err_2 is None: abs_err_2 = 1e+12 * abs_err_1
+    if rel_err_2 is None: rel_err_2 = 1e+12 * rel_err_1
     
     # Swap errors if necessary
     if abs_err_1 > abs_err_2: abs_err_1, abs_err_2 = abs_err_2, abs_err_1
@@ -280,17 +300,16 @@ def root_in(f, x1, x2,
         
         """Compute next point"""
         
-        # 1. If overflow occurs or f(x) is infinite, use bisection.
-        # 2. Compute the next point.
-        # 2.1. Alternate between arithmetic and geometric mean,
-        # 2.2. or just use x = x2 + t*(x1-x2).
-        # 3. Apply tolerance.
-        if is_infinite(x1-x2) or is_infinite(f1) or is_infinite(f2): t = 0.5
+        # 1. Compute the next point.
+        # 1.1. Alternate between arithmetic and geometric mean,
+        # 1.2. or just use x = x2 + t*(x1-x2).
+        # 2. Apply tolerance.
+        # 2.1. Shift from initial to final tolerance.
         if t == 0.5:
             x = mean(x1, x2, bisection_flag)
         else:
             x = x2 + t*(x1-x2)
-        if abs(x1-x2) < 8*(abs_err_2 + rel_err_2*abs(x)):
+        if abs(x1-x2) < 16*(abs_err_2 + rel_err_2*abs(x)):
             abs_err_2 = abs_err_1
             rel_err_2 = rel_err_1
         x += 0.25*(abs_err_2 + rel_err_2*abs(x))*sign(0.5*(x1+x2)-x)
@@ -311,12 +330,24 @@ def root_in(f, x1, x2,
         
         """Update counters"""
         n += 1
-        if t < 0.5: bisection_fails += 1
-        else: bisection_fails = 0
-        if t == 0.5 and (x1-x2)/(x1-x3) > 0.25 or is_infinite(x1):
+        min_x = min(abs(x1), abs(x2))
+        max_x = max(abs(x1), abs(x2))
+        if min_x/max_x < 0.125:
+            if (x1-x2)/(x1-x3) > 0.125:
+                bisection_flag = not bisection_flag
+            bisection_fails += 1
+        elif t < 0.5:
+            bisection_fails += 1
+        elif t > 0.5:
+            bisection_fails = 0
+        elif t == 0.5 and (x1-x2)/(x1-x3) > 0.125:
             bisection_flag = not bisection_flag
             if (x1-x2)/(x1-x3) > 0.75:
                 bisection_fails += 1
+            else:
+                bisection_fails = 0
+        else:
+            bisection_fails = 0
         
         """Compute t for next iteration"""
         
@@ -329,11 +360,12 @@ def root_in(f, x1, x2,
         if bisection_fails == 3:
             
             # Try the Illinois method
-            temp = bracketing_method(x1, 0.25*f1, x2, f2, x3, f3, x, fx, t)
+            temp = bracketing_method(x1, 0.5*f3*(x1-x2)/(x3-x2), x2, f2, x3, f3, x, fx, t)
             
             # Resort to over-stepping if Illinois has no effect or is too slow
             if 4*n > iterations or temp == bracketing_method(x1, f1, x2, f2, x3, f3, x, fx, t):
-                temp *= 4
+                temp *= 2
+                if temp >= 1: temp -= 1
             
             # Resort to bisection if over-stepped too much
             t = min(0.5, temp)
@@ -345,11 +377,13 @@ def root_in(f, x1, x2,
             t = 0.5
     
     """======For seeing final result======"""
-    if print_result: print(f'{n}th iteration: {(x1*f2-x2*f1)/(f2-f1)}')
+    if print_result: print(f'{n}th iteration:\nf({(x1*f2-x2*f1)/(f2-f1)}) = {f((x1*f2-x2*f1)/(f2-f1))}')
     
     """Return secant iteration"""
-    if f2 == 0 or is_nan(f2): return x2
-    return (x1*f2-x2*f1)/(f2-f1)
+    if return_iterations: return n
+    if f2 == 0: return x2
+    elif is_nan(f2): return (x1*f3-x3*f1)/(f3-f1)
+    else: return (x1*f2-x2*f1)/(f2-f1)
 
 
 def optimize(g, x1, x2,
@@ -391,7 +425,7 @@ def optimize(g, x1, x2,
     
     x = root_in(f, x1, x2, method, iterations, abs_err_1, rel_err_1, abs_err_2, rel_err_2)
     """======For seeing final result======"""
-    if print_result: print(f'\ng({x}) \t= {g(x)}')
+    if print_result and not return_iterations: print(f'\ng({x}) \t= {g(x)}')
     return x
 
 
