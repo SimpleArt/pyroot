@@ -266,7 +266,7 @@ def root_in(f, x1, x2,
         return (f2*x1-f1*x2)/(f2-f1)
     
     """Set default iterations and error"""
-    if iterations is None: iterations = 100
+    if iterations is None: iterations = 70
     
     # Set default errors
     if abs_err_1 is None: abs_err_1 = 1e-14 * min(1, abs(x2-x1))
@@ -330,7 +330,7 @@ def root_in(f, x1, x2,
         
         """Update counters"""
         n += 1
-        min_x = min(abs(x1), abs(x2))
+        min_x = sign(x1)*sign(x2)*min(abs(x1), abs(x2))
         max_x = max(abs(x1), abs(x2))
         if min_x/max_x < 0.125:
             if (x1-x2)/(x1-x3) > 0.125:
