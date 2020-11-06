@@ -11,14 +11,8 @@ def chandrupatla_mixed(x1, f1, x2, f2, x3, f3, x4, f4, t):
     x = (x2-x1) / (x3-x1)
     y = (f2-f1) / (f3-f1)
     
-    iqi_flag = y**2 < x and (1-y)**2 < 1-x
-    if iqi_flag and (x-y**2)*(1-x-(1-y)**2) < 1.5*(y-x**2)*(1-y-(1-x)**2):
-        qi_flag = False
-    else:
-        qi_flag = x**2 < y and (1-x)**2 < 1-y
-    
     # use quadratic interpolation
-    if qi_flag:
+    if x**2 < y and (1-x)**2 < 1-y and y*(1-y) < x*(1-x):
         a = (f1-f2)/(x1-x2)
         b = (f2-f3)/(x2-x3)
         b = (a-b)/(x1-x3)
@@ -33,7 +27,7 @@ def chandrupatla_mixed(x1, f1, x2, f2, x3, f3, x4, f4, t):
         return (r-x2)/(x1-x2)
     
     # use inverse quadratic interpolation
-    elif iqi_flag:
+    elif y**2 < x and (1-y)**2 < 1-x:
         al = (x3-x2) / (x1-x2)
         a = f2 / (f1-f2)
         b = f3 / (f1-f3)
