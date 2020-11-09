@@ -2,8 +2,8 @@ import solver
 from math import exp, log, sin, cos, sqrt, pi
 inf = float('inf')
 line = '-'*40
-solver.return_iterations = True
 solver.print_result = False  # Set to true to see individual iterations
+solver.return_iterations = not solver.print_result
 
 methods = [
     'bisection',
@@ -30,6 +30,42 @@ def test(str, f, x1, x2):
     if solver.print_result: print(line)
 
 
+# Lambert W function
+# with tight bounds.
+for n in range(1, 10):
+    test(f'xe^x - {n}', lambda x: x*exp(x)-n, log(n+1), min(log(n/log(n+1)), n*exp(1)))
+
+# Lambert W function
+# with loose bounds.
+for n in range(1, 10):
+    test(f'xe^x - {n}', lambda x: inf if x > 700 else x*exp(x)-n, inf, -1)
+
+# Bring radical
+# with tight bounds.
+for n in range(-10, 12, 2):
+    test(f'x^5 + x + {n}', lambda x: (x*x*x*x+1)*x+n, -1-abs(n), 1+abs(n))
+
+# Bring radical
+# with loose bounds.
+for n in range(-10, 12, 2):
+    test(f'x^5 + x + {n}', lambda x: (x*x*x*x+1)*x+n, -inf, inf)
+
+# Quantile of Binomial Distribution
+# 1st, 2nd, and 3rd quantiles.
+def binomial_cdf(k, n, p):
+    if p*(1-p) == 0: return 1-p
+    sum = 0
+    term = 1
+    for i in range(1+int(k)):
+        sum += term*(1-p)**(n-i)
+        term *= (n-i)*p/(i+1)
+    return sum
+
+for n in range(1, 17, 4):
+    for k in range(0, n, 4):
+        for q in range(1, 4):
+            test(f'Binomial_CDF({k}, {n}, x) - {q/4}', lambda x: binomial_cdf(k, n, x)-q/4, 0, 1)
+
 test('x^3 - x^2 - x - 1', lambda x: x**3-x*x-x-1, 1, 2)
 
 test('e^x - 2', lambda x: exp(x)-2, -4, 4/3)
@@ -49,8 +85,9 @@ for n in range(1, 5):
 for n in range(1, 5):
     test(f'{1+(1-n)**4}x - (1-{n}x)^4', lambda x: (1+(1-n)**4)*x-(1-n*x)**4, 0, 1)
 
-for n in range(1, 5):
-    test(f'x^2 - (1-x)^{n}', lambda x: x*x-(1-x)**n, 0, 1)
+for j in range(1, 5):
+    for k in range(5, 12):
+        test(f'x^{j} - (1-x)^{k/4}', lambda x: x**j-(1-x)**(k/4), 0, 1)
 
 for n in range(1, 5):
     test(f'(x-1)e^-{n}x + x^{n}', lambda x: (x-1)*exp(-n*x)+x**n, 0, 1)
