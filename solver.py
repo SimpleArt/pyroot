@@ -279,9 +279,9 @@ def root_in(f, x1, x2,
     if rel_err_1 > rel_err_2: rel_err_1, rel_err_2 = rel_err_2, rel_err_1
     
     # Set minimum errors if necessary
-    if abs_err_1 < realmin: abs_err_1 = realmin
+    if abs_err_1 < 4*realmin: abs_err_1 = 4*realmin
     if rel_err_1 < 1e-14: rel_err_1 = 1e-14
-    if abs_err_2 < realmin: abs_err_2 = realmin
+    if abs_err_2 < 4*realmin: abs_err_2 = 4*realmin
     if rel_err_2 < 1e-14: rel_err_2 = 1e-14
     
     """Initialize variables"""
@@ -360,7 +360,7 @@ def root_in(f, x1, x2,
         if bisection_fails == 3:
             
             # Try the Illinois method
-            temp = bracketing_method(x1, 0.5*f3*(x1-x2)/(x3-x2), x2, f2, x3, f3, x, fx, t)
+            temp = bracketing_method(x1, 0.5*f3*((x1-x2)/(x3-x2)), x2, f2, x3, f3, x, fx, t)
             
             # Resort to over-stepping if Illinois has no effect or is too slow
             if 4*n > iterations or temp == bracketing_method(x1, f1, x2, f2, x3, f3, x, fx, t):
@@ -377,7 +377,11 @@ def root_in(f, x1, x2,
             t = 0.5
     
     """======For seeing final result======"""
-    if print_result: print(f'{n}th iteration:\nf({(x1*f2-x2*f1)/(f2-f1)}) = {f((x1*f2-x2*f1)/(f2-f1))}')
+    if print_result:
+        if f2 == 0:
+            print(f'f({x2}) = 0.0')
+        else:
+            print(f'{n}th iteration:\nf({(x1*f2-x2*f1)/(f2-f1)}) = {f((x1*f2-x2*f1)/(f2-f1))}')
     
     """Return secant iteration"""
     if return_iterations: return n
