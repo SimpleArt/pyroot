@@ -225,7 +225,7 @@ def root_in(f, x1, x2,
                 rel_err_1 = None,
                 abs_err_2 = None,
                 rel_err_2 = None,
-                safe_start = True,
+                x = None,
                 f1 = None,
                 f2 = None
             ):
@@ -276,9 +276,18 @@ def root_in(f, x1, x2,
     n = 0
     bisection_fails = 0
     x3, f3 = None, None
-    t = 0.5 if safe_start else f2 / (f2-f1)
-    if is_nan(t): t = 0.5
+    t = 0.5
     bisection_flag = True
+    print(x)
+    print(sign(x-x1)*sign(x-x2))
+    
+    # If an initial point x is given, check if it is
+    # within the bracket. If it is not, reset it and
+    # use bisection. Otherwise update t with the new
+    # point.
+    if x is not None:
+        if sign(x-x1)*sign(x-x2) != -1: x = None
+        else: t = (x-x2)/(x1-x2)
     
     """Loop until convergence"""
     while (is_infinite(x1) or abs(x1-x2) > abs_err_1 + 0.5*rel_err_1*abs(x1+x2)) and f2 != 0 and not is_nan(f2):
@@ -289,20 +298,22 @@ def root_in(f, x1, x2,
         
         """Compute next point"""
         
+        # 0. Skip if initial point given.
         # 1. Compute the next point.
         # 1.1. Alternate between arithmetic and geometric mean,
         # 1.2. or just use x = x2 + t*(x1-x2).
         # 2. Apply tolerance.
-        # 2.1. Shift from initial to final tolerance.
-        if t == 0.5:
-            x = mean(x1, x2, bisection_flag)
-        else:
-            x = x2 + t*(x1-x2)
-        if abs(x1-x2) < 16*(abs_err_2 + rel_err_2*abs(x)):
-            abs_err_2 = abs_err_1
-            rel_err_2 = rel_err_1
-        x += 0.25*(abs_err_2 + rel_err_2*abs(x))*sign(0.5*(x1+x2)-x)
+        # 3. Compute f(x).
+        if x is None:
+            if t == 0.5:
+                x = mean(x1, x2, bisection_flag)
+            else:
+                x = x2 + t*(x1-x2)
+            if abs(x1-x2) < 16*(abs_err_2 + rel_err_2*abs(x)):
+                abs_err_2 = abs_err_1
+                rel_err_2 = rel_err_1
         
+        x += 0.25*(abs_err_2 + rel_err_2*abs(x))*sign(0.5*(x1+x2)-x)
         fx = f(x)
         
         """======For seeing iterations======"""
@@ -364,6 +375,9 @@ def root_in(f, x1, x2,
         # - t is out of bounds
         if bisection_fails > 3 or t >= 1 or t <= 0 or is_nan(t):
             t = 0.5
+        
+        # Reset x
+        x = None
     
     """======For seeing final result======"""
     if print_result:
@@ -387,7 +401,7 @@ def optimize(g, x1, x2,
                  rel_err_1 = None,
                  abs_err_2 = None,
                  rel_err_2 = None,
-                 safe_start = True,
+                 x = None,
                  f = None
              ):
     """Runs an optimization method to find relative extrema of g between x1 and x2.
@@ -417,7 +431,7 @@ def optimize(g, x1, x2,
             if is_infinite(g_plus) and g_plus == g_minus: return sign(x)*g_plus
             else: return g_plus - g_minus
     
-    x = root_in(f, x1, x2, method, iterations, abs_err_1, rel_err_1, abs_err_2, rel_err_2, safe_start)
+    x = root_in(f, x1, x2, method, iterations, abs_err_1, rel_err_1, abs_err_2, rel_err_2, x)
     """======For seeing final result======"""
     if print_result and not return_iterations: print(f'\ng({x}) \t= {g(x)}')
     return x
