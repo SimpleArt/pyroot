@@ -219,12 +219,13 @@ def bracketing_method(x1, f1, x2, f2, x3, f3, x4, f4, t):
 
 
 def root_in(f, x1, x2,
-                method = None,
-                iterations = None,
+                method = 'chandrupatla mixed',
+                iterations = 70,
                 abs_err_1 = None,
                 rel_err_1 = None,
                 abs_err_2 = None,
                 rel_err_2 = None,
+                safe_start = True,
                 f1 = None,
                 f2 = None
             ):
@@ -236,15 +237,9 @@ def root_in(f, x1, x2,
     """
     
     """Set bracketing method to be used"""
-    if method in bracketing_method_dict:
-        bracketing_method = bracketing_method_dict[method]
-    else:
-        bracketing_method = bracketing_method_dict['chandrupatla mixed']
+    bracketing_method = bracketing_method_dict[method]
     
-    """Set default iterations and error"""
-    if iterations is None: iterations = 100
-    
-    """Compute initial points"""
+    # Compute initial points
     if x1 == x2: return x1
     if is_infinite(x1):
         x1 = sign(x1)*realmax
@@ -253,20 +248,13 @@ def root_in(f, x1, x2,
     if f1 is None: f1 = f(x1)
     if f2 is None: f2 = f(x2)
     if is_nan(f1) or is_nan(f2) or f1 == f2:
-        if return_iterations: return 0
-        return 0.5*(x1+x2)
+        return 0 if return_iterations else 0.5*(x1+x2)
     if f1 == 0:
-        if return_iterations: return 0
-        return x1
+        return 0 if return_iterations else x1
     if f2 == 0:
-        if return_iterations: return 0
-        return x2
+        return 0 if return_iterations else x2
     if sign(f1) == sign(f2):
-        if return_iterations: return 0
-        return (f2*x1-f1*x2)/(f2-f1)
-    
-    """Set default iterations and error"""
-    if iterations is None: iterations = 70
+        return 0 if return_iterations else (f2*x1-f1*x2)/(f2-f1)
     
     # Set default errors
     if abs_err_1 is None: abs_err_1 = 1e-14 * min(1, abs(x2-x1))
@@ -288,7 +276,8 @@ def root_in(f, x1, x2,
     n = 0
     bisection_fails = 0
     x3, f3 = None, None
-    t = 0.5 # Safe start is bisection
+    t = 0.5 if safe_start else f2 / (f2-f1)
+    if is_nan(t): t = 0.5
     bisection_flag = True
     
     """Loop until convergence"""
@@ -332,7 +321,7 @@ def root_in(f, x1, x2,
         n += 1
         min_x = sign(x1)*sign(x2)*min(abs(x1), abs(x2))
         max_x = max(abs(x1), abs(x2))
-        if min_x/max_x < 0.125:
+        if 8*min_x < max_x:
             if (x1-x2)/(x1-x3) > 0.125:
                 bisection_flag = not bisection_flag
             bisection_fails += 1
@@ -378,10 +367,11 @@ def root_in(f, x1, x2,
     
     """======For seeing final result======"""
     if print_result:
+        print(f'{n}th iteration:')
         if f2 == 0:
             print(f'f({x2}) = 0.0')
         else:
-            print(f'{n}th iteration:\nf({(x1*f2-x2*f1)/(f2-f1)}) = {f((x1*f2-x2*f1)/(f2-f1))}')
+            print(f'f({(x1*f2-x2*f1)/(f2-f1)}) = {f((x1*f2-x2*f1)/(f2-f1))}')
     
     """Return secant iteration"""
     if return_iterations: return n
@@ -391,12 +381,13 @@ def root_in(f, x1, x2,
 
 
 def optimize(g, x1, x2,
-                 method = None,
-                 iterations = None,
+                 method = 'chandrupatla mixed',
+                 iterations = 70,
                  abs_err_1 = None,
                  rel_err_1 = None,
                  abs_err_2 = None,
                  rel_err_2 = None,
+                 safe_start = True,
                  f = None
              ):
     """Runs an optimization method to find relative extrema of g between x1 and x2.
@@ -411,23 +402,24 @@ def optimize(g, x1, x2,
     """
     
     """Set default error"""
-    if abs_err_1 is None: abs_err_1 = 1e-8
+    if abs_err_1 is None: abs_err_1 = 1e-8 * min(1, abs(x2-x1))
     if rel_err_1 is None: rel_err_1 = 1e-8
     if abs_err_2 is not None and abs_err_1 > abs_err_2: abs_err_1, abs_err_2 = abs_err_2, abs_err_1
     if rel_err_2 is not None and rel_err_1 > rel_err_2: rel_err_1, rel_err_2 = rel_err_2, rel_err_1
-    if abs_err_1 < realmin: abs_err_1 = realmin
+    if abs_err_1 < 4*realmin: abs_err_1 = 4*realmin
     if rel_err_1 < 1e-12: rel_err_1 = 1e-12
     
     """Symmetric difference"""
     if f is None:
         def f(x):
             dx = abs_err_1 + rel_err_1*abs(x)
-            gx = g(x)
-            if abs(dx) < 1e100 and not is_infinite(gx): return g(x+dx) - g(x-dx)
-            if is_infinite(gx): return gx * sign(x)
-            else: return 0.0
+            g_plus, g_minus = g(x+dx), g(x-dx)
+            if is_infinite(x+dx): return 0 if not is_infinite(g_plus) else sign(x)*g_plus
+            if is_infinite(x-dx): return 0 if not is_infinite(g_minus) else sign(x)*g_minus
+            if is_infinite(g_plus) and g_plus == g_minus: return sign(x)*g_plus
+            else: return g_plus - g_minus
     
-    x = root_in(f, x1, x2, method, iterations, abs_err_1, rel_err_1, abs_err_2, rel_err_2)
+    x = root_in(f, x1, x2, method, iterations, abs_err_1, rel_err_1, abs_err_2, rel_err_2, safe_start)
     """======For seeing final result======"""
     if print_result and not return_iterations: print(f'\ng({x}) \t= {g(x)}')
     return x
