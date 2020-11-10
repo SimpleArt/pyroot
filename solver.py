@@ -414,8 +414,6 @@ def optimize(g, x1, x2,
         def f(x):
             dx = abs_err_1 + rel_err_1*abs(x)
             g_plus, g_minus = g(x+dx), g(x-dx)
-            if is_infinite(x+dx): return 0 if not is_infinite(g_plus) else sign(x)*g_plus
-            if is_infinite(x-dx): return 0 if not is_infinite(g_minus) else sign(x)*g_minus
             if is_infinite(g_plus) and g_plus == g_minus: return sign(x)*g_plus
             else: return g_plus - g_minus
     
