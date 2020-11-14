@@ -1,5 +1,9 @@
 def sign(x):
-    return (x>0)-(x<0)
+    """Returns the sign of x.
+    """
+    if x > 0: return +1
+    if x < 0: return -1
+    else: return 0
 
 def chandrupatla_mixed(x1, f1, x2, f2, x3, f3, x4, f4, t):
     """Chandrupatla's method which chooses the best of

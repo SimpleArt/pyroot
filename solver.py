@@ -13,6 +13,8 @@ realmin = sys.float_info.min  # Smallest positive float
 realmax = sys.float_info.max  # Largest positive float
 sqrtmin = sqrt(realmin)       # Smallest positive root
 sqrtmax = sqrt(realmax)       # Largest positive root
+inf = float('inf')         # Infinity in floats
+nan = float('nan')         # Not a number
 print_iterations  = False  # Printing intermediate iterations
 print_result      = False  # Printing the final iteration
 return_iterations = False  # Return the number of iterations with the result
@@ -24,12 +26,11 @@ def is_infinite(x):
     return abs(x) == float('inf')
 
 def sign(x):
-    """Returns the sign of x:
-    if x > 0: +1
-    if x < 0: -1
-    if x == 0: 0
+    """Returns the sign of x.
     """
-    return (x>0) - (x<0)
+    if x > 0: return +1
+    if x < 0: return -1
+    else: return 0
 
 def mean(x, y, flag):
     """Alternates between using
@@ -225,7 +226,7 @@ def root_in(f, x1, x2,
                 rel_err_1 = None,
                 abs_err_2 = None,
                 rel_err_2 = None,
-                x = None,
+                x_init = nan,
                 f1 = None,
                 f2 = None
             ):
@@ -278,16 +279,6 @@ def root_in(f, x1, x2,
     x3, f3 = None, None
     t = 0.5
     bisection_flag = True
-    print(x)
-    print(sign(x-x1)*sign(x-x2))
-    
-    # If an initial point x is given, check if it is
-    # within the bracket. If it is not, reset it and
-    # use bisection. Otherwise update t with the new
-    # point.
-    if x is not None:
-        if sign(x-x1)*sign(x-x2) != -1: x = None
-        else: t = (x-x2)/(x1-x2)
     
     """Loop until convergence"""
     while (is_infinite(x1) or abs(x1-x2) > abs_err_1 + 0.5*rel_err_1*abs(x1+x2)) and f2 != 0 and not is_nan(f2):
@@ -298,13 +289,16 @@ def root_in(f, x1, x2,
         
         """Compute next point"""
         
-        # 0. Skip if initial point given.
+        # 0. Skip if initial point is in the interval.
         # 1. Compute the next point.
         # 1.1. Alternate between arithmetic and geometric mean,
         # 1.2. or just use x = x2 + t*(x1-x2).
         # 2. Apply tolerance.
         # 3. Compute f(x).
-        if x is None:
+        if sign(x_init-x1)*sign(x_init-x2) == -1:
+            x = x_init
+            t = (x-x2)/(x1-x2)
+        else:
             if t == 0.5:
                 x = mean(x1, x2, bisection_flag)
             else:
@@ -375,9 +369,6 @@ def root_in(f, x1, x2,
         # - t is out of bounds
         if bisection_fails > 3 or t >= 1 or t <= 0 or is_nan(t):
             t = 0.5
-        
-        # Reset x
-        x = None
     
     """======For seeing final result======"""
     if print_result:
