@@ -25,7 +25,7 @@ Example
 
 ```python
 from pyroot import solver, solver_generator
-from tabulate import tabulate
+from tabulate import tabulate  # https://pypi.org/project/tabulate/
 
 inf = float("inf")
 
@@ -109,6 +109,13 @@ For example:
 ```python
 x = solver(f, x1, x2, fprime, method="newton")
 ```
+
+### Solver Generator
+
+The `solver_generator` provides the same API as the `solver`, but instead of just returning the final result, every iteration is `yield`ed. This allows one to, for example, track iterations as they occur, and even send estimates in-between iterations. The documentation includes examples of this combined with the `tabulate` [package](https://pypi.org/project/tabulate/) to allow prettier printing.
+
+### Full API Documentation
+
 For a full description of the `solver`, run the following code:
 ```python
 from pyroot import solver
