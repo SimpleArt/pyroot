@@ -83,11 +83,13 @@ Usage
 
 All of the methods involve the same base API, although some methods may further extend it e.g. the Newt-safe method includes an `fprime` parameter.
 
+### Solver Parameters
+
 The required arguments for the `solver` API are the following 3 positional-only arguments:
 - `f` is the function whose root you are searching for. It must accept 1 `float` argument.
 - `x1, x2` are the first two estimates for the root. Requires `f(x1)` and `f(x2)` have different signs.
 
-Additionally, the following 10 keyword-only arguments allow some customizability:
+The following 10 keyword-only arguments allow some customizability:
 - `y1, y2` may be `f(x1), f(x2)` if known ahead of time, or approximately known.
 - `x` may be a better estimate of the root than `x1` or `x2`, but `f(x)` has unknown sign.
 - `method` may be the string name of a bracketing method, or an implementation of one.
@@ -96,6 +98,17 @@ Additionally, the following 10 keyword-only arguments allow some customizability
 - `refine` controls the number of additional iterations ran after `x_err` or `r_err` are reached. By default set to run 15 iterations, but usually only takes 3 iterations.
 - `mean` controls the behavior of bisection-like iterations. By default, employs tricks to improve convergence on large intervals.
 
+### Method Parameters
+
+Additional `*args` or `**kwargs` may be provided to be passed into the particular `method`, as follows:
+```python
+# Passes *args, **kwargs into the method.
+x = solver(f, x1, x2, *args, **kwargs, **options)
+```
+For example:
+```python
+x = solver(f, x1, x2, fprime, method="newton")
+```
 For a full description of the `solver`, run the following code:
 ```python
 from pyroot import solver
