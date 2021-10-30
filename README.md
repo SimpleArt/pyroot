@@ -4,7 +4,7 @@ pyroot
 Abstract
 --------
 
-Python library implementing advanced bracketed root-finding methods for single-variable functions. These methods are meant to both guarantee convergence and also minimize the number of function calls made, even if extremely poor estimates of the root are initially provided or the function is not very well-behaved.
+The purpose of this Python library is to provide implements advanced bracketed root-finding methods for single-variable functions. These methods are meant to both guarantee convergence and also minimize the number of function calls made, even if extremely poor estimates of the root are initially provided or the function is not very well-behaved.
 
 The following root-finding methods are implemented:
 
@@ -24,7 +24,7 @@ Example
 -------
 
 ```python
-from pyroot import solver, solver_generator
+from pyroot import solver, solver_table
 from tabulate import tabulate  # https://pypi.org/project/tabulate/
 
 inf = float("inf")
@@ -36,37 +36,36 @@ def f(x):
 
 # Use the default root-finder.
 x = solver(f, -inf, +inf)
-iterations = [(i, x, f(x)) for i, x in enumerate(solver_generator(f, -inf, +inf))]
+table = solver_table(f, -inf, +inf)
 
 # Print the results.
-print(f"x = {x})
-print(f"f(x) = {f(x)})
+print(f"x = {x}")
+print(f"f(x) = {f(x)}")
 print()
-print("Iterations:")
-print(tabulate(iterations, ("i", "x", "y")))
+print(table)
 ```
 Output:
 ```
 x = 1.6398020042326555
 f(x) = 0.0
 
-Iterations:
   i              x               y
 ---  -------------  --------------
   0  -1.79769e+308  -inf
   1   1.79769e+308   inf
   2   0               -5
-  3   8.98847e+307   inf
-  4   0.0078125       -4.98444
-  5   1.68361          0.30496
-  6   0.491764        -4.13938
-  7   1.62344         -0.11002
-  8   1.64042          0.00417759
-  9   1.6398           4.41056e-07
- 10   1.6398          -2.34301e-12
- 11   1.6398           2.13163e-14
- 12   1.6398          -1.95399e-14
+  3   1               -3
+  4   4.09375         55.035
+  5   2.54688         10.1277
+  6   1.77344          0.979398
+  7   1.65035          0.0720223
+  8   1.63923         -0.00387468
+  9   1.6398           1.76943e-05
+ 10   1.6398           1.31717e-11
+ 11   1.6398          -2.53042e-12
+ 12   1.6398           2.53042e-12
  13   1.6398           0
+x = 1.6398020042326555
 ```
 
 Rationale
@@ -85,11 +84,16 @@ All of the methods involve the same base API, although some methods may further 
 
 ### Solver Parameters
 
-The required arguments for the `solver` API are the following 3 positional-only arguments:
+The `solver` takes the following arguments:
+```python
+x = solver(f, x1, x2, *args, **kwargs, **options)
+```
+
+The required arguments for the `solver` API are the following 3 positional-only parameters:
 - `f` is the function whose root you are searching for. It must accept 1 `float` argument.
 - `x1, x2` are the first two estimates for the root. Requires `f(x1)` and `f(x2)` have different signs.
 
-The following 10 keyword-only arguments allow some customizability:
+The following 10 keyword-only parameters (`**options`) allow some customizability:
 - `y1, y2` may be `f(x1), f(x2)` if known ahead of time, or approximately known.
 - `x` may be a better estimate of the root than `x1` or `x2`, but `f(x)` has unknown sign.
 - `method` may be the string name of a bracketing method, or an implementation of one.
@@ -97,6 +101,8 @@ The following 10 keyword-only arguments allow some customizability:
 - `x_tol, r_tol` controls initial step-sizes, preventing slow initial convergence when the bracketing interval is significantly larger.
 - `refine` controls the number of additional iterations ran after `x_err` or `r_err` are reached. By default set to run 15 iterations, but usually only takes 3 iterations.
 - `mean` controls the behavior of bisection-like iterations. By default, employs tricks to improve convergence on large intervals.
+
+**Note**: Nothing is included for termination based on the number of iterations. This is because most cases will terminate in less than 25 iterations already. If one truly wishes to terminate based on a set number of iterations, the `solver_generator` may be used to terminate based on a fixed number of iterations, or other termination conditions, such as the magnitude of `f(x)`. If one does this, it should be noted that the last produced iteration need not be the best estimate of the root.
 
 ### Method Parameters
 
@@ -110,9 +116,11 @@ For example:
 x = solver(f, x1, x2, fprime, method="newton")
 ```
 
-### Solver Generator
+### Solver Generator / Table
 
-The `solver_generator` provides the same API as the `solver`, but instead of just returning the final result, every iteration is `yield`ed. This allows one to, for example, track iterations as they occur, and even send estimates in-between iterations. The documentation includes examples of this combined with the `tabulate` [package](https://pypi.org/project/tabulate/) to allow prettier printing.
+The `solver_generator` provides the same API as the `solver`, but instead of just returning the final result, every iteration is `yield`ed. This allows one to track iterations as they occur, send estimates in-between iterations, terminate early, and so on. The documentation includes examples of this combined with the `tabulate` [package](https://pypi.org/project/tabulate/) to allow prettier printing.
+
+The `solver_table` provides the same API as the `solver_generator`, but instead of generating results, a stringified table of results is returned, using the `tabulate` package.
 
 ### Full API Documentation
 
@@ -128,5 +136,3 @@ from pyroot import methods_dict
 
 help(methods_dict["newt safe"])
 ```
-
-
