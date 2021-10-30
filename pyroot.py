@@ -737,6 +737,16 @@ def solver(
     if isinstance(method, str):
         method = method.lower().replace("_", " ")
     method = methods_dict.get(method, method)
+    # Cast values to floats to avoid weird integer stuff.
+    x1 = float(x1)
+    x2 = float(x2)
+    y1 = float(y1)
+    y2 = float(y2)
+    x = float(x)
+    x_err = float(x_err)
+    r_err = float(r_err)
+    x_tol = float(x_tol)
+    r_tol = float(r_tol)
     # Round infinity down to the largest non-inf floats.
     if isinf(x1):
         x1 = sign(x1) * real_max
@@ -1041,6 +1051,16 @@ def solver_generator(
     if isinstance(method, str):
         method = method.lower().replace("_", " ")
     method = methods_dict.get(method, method)
+    # Cast values to floats to avoid weird integer stuff.
+    x1 = float(x1)
+    x2 = float(x2)
+    y1 = float(y1)
+    y2 = float(y2)
+    x = float(x)
+    x_err = float(x_err)
+    r_err = float(r_err)
+    x_tol = float(x_tol)
+    r_tol = float(r_tol)
     # Round infinity down to the largest non-inf floats.
     if isinf(x1):
         x1 = sign(x1) * real_max
