@@ -1,34 +1,31 @@
 """
 Example
 -------
->>> from pyroot import solver, solver_generator, inf
->>> def f(x):
-...     return ((x - 1) * x + 2) * x - 5
-...
->>> x = solver(f, -inf, +inf)
->>> x, f(x)
-(1.6398020042326555, 0.0)
->>> from tabulate import tabulate
->>> print(tabulate(
-...     [(i, x, f(x)) for i, x in enumerate(solver_generator(f, -inf, +inf))],
-...     ("i", "x", "y")
-... ))
-  i              x               y
----  -------------  --------------
-  0  -1.79769e+308  -inf
-  1   1.79769e+308   inf
-  2   0               -5
-  3   8.98847e+307   inf
-  4   0.0078125       -4.98444
-  5   1.68361          0.30496
-  6   0.491764        -4.13938
-  7   1.62344         -0.11002
-  8   1.64042          0.00417759
-  9   1.6398           4.41056e-07
- 10   1.6398          -2.34301e-12
- 11   1.6398           2.13163e-14
- 12   1.6398          -1.95399e-14
- 13   1.6398           0
+    >>> from pyroot import solver, solver_table, inf
+    >>> def f(x):
+    ...     return ((x - 1) * x + 2) * x - 5
+    ...
+    >>> x = solver(f, -inf, +inf)
+    >>> x, f(x)
+    (1.6398020042326555, 0.0)
+    >>> print(solver_table(f, -inf, +inf))
+      i              x               y
+    ---  -------------  --------------
+      0  -1.79769e+308  -inf
+      1   1.79769e+308   inf
+      2   0               -5
+      3   1               -3
+      4   4.09375         55.035
+      5   2.54688         10.1277
+      6   1.77344          0.979398
+      7   1.65035          0.0720223
+      8   1.63923         -0.00387468
+      9   1.6398           1.76943e-05
+     10   1.6398           1.31717e-11
+     11   1.6398          -2.53042e-12
+     12   1.6398           2.53042e-12
+     13   1.6398           0
+    x = 1.6398020042326555
 """
 from typing import Any, Literal, Optional, Protocol, Union
 from math import exp, inf, isinf, isnan, log, nan, sqrt
@@ -66,6 +63,7 @@ __all__ = [
     "signed_pow",
     "solver",
     "solver_generator",
+    "solver_table",
 ]
 
 # Store the machine precision.
@@ -120,20 +118,22 @@ def generalized_mean(x: float, y: float, /, order: float = 1) -> float:
     Returns the signed generalized mean of x and y of the provided order.
 
     Equivalent to the formula
-        signed_pow((signed_pow(x, order) + signed_pow(y, order)) / 2, 1/order),
-    where
-        signed_pow(x, order) = sign(x) * pow(abs(x), order).
+        ((x**order + y**order) / 2) ** (1/order)
+    where `a**b` is taken as `signed_pow(a, b)`.
 
-    Avoids overflowing, even if signed_pow(...) should overflow.
+    Avoids overflowing, even if `signed_pow(...)` should overflow.
 
     Special Cases
     -------------
-    Geometric Mean (order == 0):
-        sign(x) * sqrt(abs(x * y)) if x and y are positive
-    Arithmetic Mean (order == 1):
-        (x + y) / 2
-    x and y positive (order != 0):
-        ((x**order + y**order) / 2) ** (1/order)
+
+        Geometric Mean (order == 0):
+            sign(x) * sqrt(abs(x * y)) if x and y are positive
+
+        Arithmetic Mean (order == 1):
+            (x + y) / 2
+
+        x and y positive (order != 0):
+            ((x**order + y**order) / 2) ** (1/order)
     """
     if order == 1:
         return arithmetic_mean(x, y)
@@ -153,12 +153,15 @@ def mean(x: float, y: float, /, order: float = 1) -> float:
 
     Special Cases
     -------------
-    Log Geometric Mean (order == 0):
-        exp(sqrt(log(x) * log(y))) if x and y are positive
-    Arithmetic Mean (order == 1):
-        (x + y) / 2
-    x and y positive (order != 0):
-        ((x**order + y**order) / 2) ** (1/order)
+
+        Log Geometric Mean (order == 0):
+            exp(sqrt(log(x) * log(y))) if x and y are positive
+
+        Arithmetic Mean (order == 1):
+            (x + y) / 2
+
+        x and y positive (order != 0):
+            ((x**order + y**order) / 2) ** (1/order)
     """
     return log_log_mean(x, y) if order == 0 else generalized_mean(x, y, order=order)
 
@@ -168,35 +171,39 @@ class BracketingMethod(Protocol):
 
     Call Parameters
     ---------------
-    t: float between 0 and 1.
-        Measures how much of a combination of x1 and x3 that x2 is.
-        Satisfies x2 = x3 + t * (x1 - x3).
-    (xi: float, yi: float) for i in (1, 2, 3, 4)
-        A pair of (x, y) points.
-        Satisfies the following invariants:
-            x2 is between x1 and x3.
-            x4 is not between x1 and x3.
-            sign(x1) != sign(x2) == sign(x3).
-        For example, the following ordering is possible:
-            x4 < x1 < x2 < x3
-        In other words,
-            (x1 to x2) is the current bracket.
-            (x1 to x3) is the previous bracket.
-            (x1 to x4) or (x3 to x4) is the previous previous bracket,
-                depending on the sign of y4 compared to y1.
-    *args, **kwargs: Any
-        Any additional args or kwargs a method may need. For example, the
-        Newt-safe method may take an `fprime` parameter for a derivative function.
-        See a specific method's documentation for more accurate signature.
+
+        t, between 0 and 1:
+            Measures how much of a combination of x1 and x3 that x2 is.
+            Satisfies x2 = x3 + t * (x1 - x3).
+
+        (xi, yi) for i in (1, 2, 3, 4):
+            A pair of (x, y) points.
+            Satisfies the following invariants:
+                x2 is between x1 and x3.
+                x4 is not between x1 and x3.
+                sign(x1) != sign(x2) == sign(x3).
+            For example, the following ordering is possible:
+                x4 < x1 < x2 < x3
+            In other words,
+                (x1 to x2) is the current bracket.
+                (x1 to x3) is the previous bracket.
+                (x1 to x4) or (x3 to x4) is the previous previous bracket,
+                    depending on the sign of y4 compared to y1.
+
+        *args, **kwargs:
+            Any additional args or kwargs a method may need. For example, the
+            Newt-safe method may take an `fprime` parameter for a derivative function.
+            See a specific method's documentation for more accurate signature.
 
     Call Returns
     ------------
-    t: float between 0 and 1
-        The next estimate of the root should be:
-            x = x2 + t * (x1 - x2)
-        unless t == 0.5, in which case:
-            x = mean(x1, x2, order)
-        where the order depends on the solver() iteration.
+
+        t, between 0 and 1:
+            The next estimate of the root should be:
+                x = x2 + t * (x1 - x2)
+            unless t == 0.5, in which case:
+                x = mean(x1, x2, order)
+            where the order depends on the solver() iteration.
     """
 
     def __call__(
@@ -251,39 +258,43 @@ def newton(
 
     Parameters
     ----------
-    fprime(float) -> float, optional
-        If fprime is not given, the secant method is used.
-        If fprime is given, the Newton-Raphson method is used.
-        **Note:
-            If the NR method goes out of the bracketing interval,
-            then bisection is used instead.
-    classic: bool, default False
-        If fprime is given and classic is True, then the classic
-        Newton-Raphson method will be used. If classic is False,
-        then a faster NR method is used.
-        **Note:
-            The classic NR method uses fprime(x2), but the faster
-            NR method uses fprime(x) for some x between x1 and x2.
-            In some cases this is undesirable because fprime(x2)
-            might be computed when y2 = f(x2) is computed.
+
+        fprime, optional:
+            If fprime is not given, the secant method is used.
+            If fprime is given, the Newton-Raphson method is used.
+            **Note:
+                If the NR method goes out of the bracketing interval,
+                then bisection is used instead.
+
+        classic, default False:
+            If fprime is given and classic is True, then the classic
+            Newton-Raphson method will be used. If classic is False,
+            then a faster NR method is used.
+            **Note:
+                The classic NR method uses fprime(x2), but the faster
+                NR method uses fprime(x) for some x between x1 and x2.
+                In some cases this is undesirable because fprime(x2)
+                might be computed when y2 = f(x2) is computed.
 
     Example
     -------
-    >>> def f(x):
-    ...     return x*x - 4
-    ...
-    >>> def fprime(x):
-    ...     return 2 * x
-    ...
-    >>> solver(f, 0, 5, fprime, method="newton", classic=True)
-    2.0
+
+        >>> def f(x):
+        ...     return x*x - 4
+        ...
+        >>> def fprime(x):
+        ...     return 2 * x
+        ...
+        >>> solver(f, 0, 5, fprime, method="newton", classic=True)
+        2.0
 
     Notes
     -----
-    The Newton-Raphson method uses only (x2, y2).
 
-    The faster NR method uses (x2, y2) and fprime(x),
-    for some x between x1 and x2.
+        The Newton-Raphson method uses only (x2, y2).
+
+        The faster NR method uses (x2, y2) and fprime(x),
+        for some x between x1 and x2.
     """
     # Use the secant method by default.
     if fprime is None:
@@ -632,106 +643,117 @@ def solver(
     **kwargs: Any,
 ) -> float:
     """
-    Provides a roots.solver() for finding a root of a provided
-    function f and two points x1 and x2, for which it is known that
-    sign(f(x1)) != sign(f(x2)).
+    Computes a root between x1 and x2 of the function f,
+    provided that f(x1) and f(x2) have different signs.
 
     Parameters
     ----------
-    f(float) -> float
-        The function whose root is being searched for.
-    x1, x2: float
-        Two points where it is known that sign(f(x1)) != sign(f(x2)).
-        It is not required that x1 < x2.
-    y1, y2: float, default f(x1), f(x2)
-        Provide initially known values if necessary.
-    x: float, default nan
-        The initial guess of the root. Useful if the initial bracketing points,
-        x1 and x2, are fairly inaccurate, but a very accurate point is known
-        ahead of time without a bracket. This is ignored if it is not between
-        x1 and x2, otherwise it is used for the first iteration. May allow
-        interpolation methods to rapidly bracket the root accurately.
 
-    method: str
-        Name may include uppercase letters, or either "_" or " "
-            e.g., "Chandrupatla Mixed" or "chandrupatla_mixed".
-        See below for details.
-    method : BracketingMethod, default chandrupatla_mixed
-        A bracketing method or the name of one (see above for options).
-        The method used determines what the next point will be, unless it fails to
-        converge rapidly enough, in which case bisection gains precedence.
-    **Note:
-        See methods_dict for bracketing methods.
-    **Note:
-        Using bisection i.e. 0.5 will actually use the arithmetic and geometric means,
-        not just the standard arithmetic mean. This guarantees fast convergence when
-        dealing with floats.
+        f:
+            The function whose root is being searched for.
 
-    x_err: float, default 0.0
-        The absolute error required for termination.
-    r_err: float, default 4096 * epsilon ~ 1e-12 ~ 12 significant figures of precision
-        The relative error required for termination.
-        By default, set to 4096 times the machine precision, but it can be expected
-        that the end result is accurate all the way to machine precision.
-        If higher precision is desired, 32 * epsilon ~ 1e-14 is recommended.
-    x_tol: float, default r_tol * min(1, abs(x1 - x2))
-        The absolute tolerance initially used to force iterations to move a certain
-        distance instead of remaining stuck really close to x1 or x2.
-    r_tol: float, default r_err / (1024 * epsilon) ~ 0.03125
-        The relative tolerance initially used to force iterations to move a certain
-        distance instead of remaining stuck really close to x1 or x2.
-    **Note:
-        Although the error may only guarantee a certain amount of precision, the
-        final iterations to refine the estimate will usually produce results accurate
-        to machine precision anyways, especially if the root is simple.
-    **Note:
-        Once the initial tolerances are satisfied, they are reduced to the errors.
-        All errors/tolerances also have a minimum limit greater than 0 according
-        to real_min and epsilon for absolute and relative values respectively.
+        x1, x2:
+            Two points where it is known that sign(f(x1)) != sign(f(x2)).
+            It is not required that x1 < x2.
 
-    refine: int, default 15
-        The floating-point values close to the final solution are checked to
-        see if any additional accuracy may be obtained. The specified amount of
-        additional iterations used on this step is taken. The procedure is secant
-        estimates are used in combination with minimal tolerance provided by the
-        nextafter function to round steps towards the middle of the bracket.
-    **Note:
-        One may wish to set this to 0 for some of the following reasons:
-        - f cannot be computed to such precision.
-        - Such precision is not needed.
-        - f is expected to be well-behaved at the root, implying the final
-          result does not require any refinement.
+        **Note:
+            Parameters above this point are positional-only parameters.
 
-    *args, **kwargs: Any
-        Any additional args or kwargs a method may need. For example, the
-        Newt-safe method may take an `fprime` parameter for a derivative function.
-        See a specific method's documentation for more accurate signature.
+        *args, **kwargs:
+            Any additional args or kwargs a method may need. For example, the
+            Newt-safe method may take an `fprime` parameter for a derivative function.
+            See a specific method's documentation for more accurate signature.
+
+        **Note:
+            Parameters below this point are keyword-only parameters.
+
+        y1, y2, default f(x1), f(x2):
+            Provide initially known values if necessary.
+
+        x, default arithmetic_mean(x1, x2):
+            The initial guess of the root. Useful if the initial bracketing points,
+            x1 and x2, are fairly inaccurate, but a very accurate point is known
+            ahead of time without a bracket. This is ignored if it is not between
+            x1 and x2, otherwise it is used for the first iteration. May allow
+            interpolation methods to rapidly bracket the root accurately.
+
+        method: str
+            Name may include uppercase letters, or either "_" or " "
+                e.g., "Chandrupatla Mixed" or "chandrupatla_mixed".
+            See below for details.
+        method: BracketingMethod, default chandrupatla_mixed
+            A bracketing method or the name of one (see above for options).
+            The method used determines what the next point will be, unless it fails to
+            converge rapidly enough, in which case bisection gains precedence.
+        **Note:
+            See methods_dict for bracketing methods.
+        **Note:
+            Using bisection i.e. 0.5 will actually use the arithmetic and geometric means,
+            not just the standard arithmetic mean. This guarantees fast convergence when
+            dealing with floats.
+
+        x_err, default 0.0:
+            The absolute error required for termination.
+        r_err, default 4096 * epsilon ~ 1e-12 ~ 12 significant figures of precision:
+            The relative error required for termination.
+            By default, set to 4096 times the machine precision, but it can be expected
+            that the end result is accurate all the way to machine precision.
+            If higher precision is desired, 32 * epsilon ~ 1e-14 is recommended.
+        x_tol: float, default r_tol * min(1, abs(x1 - x2))
+            The absolute tolerance initially used to force iterations to move a certain
+            distance instead of remaining stuck really close to x1 or x2.
+        r_tol, default r_err / (1024 * epsilon) ~ 0.03125:
+            The relative tolerance initially used to force iterations to move a certain
+            distance instead of remaining stuck really close to x1 or x2.
+        **Note:
+            Although the error may only guarantee a certain amount of precision, the
+            final iterations to refine the estimate will usually produce results accurate
+            to machine precision anyways, especially if the root is simple.
+        **Note:
+            Once the initial tolerances are satisfied, they are reduced to the errors.
+            All errors/tolerances also have a minimum limit greater than 0 according
+            to real_min and epsilon for absolute and relative values respectively.
+
+        refine:
+            The floating-point values close to the final solution are checked to
+            see if any additional accuracy may be obtained. The specified amount of
+            additional iterations used on this step is taken. The procedure is secant
+            estimates are used in combination with minimal tolerance provided by the
+            nextafter function to round steps towards the middle of the bracket.
+        **Note:
+            One may wish to set this to 0 for some of the following reasons:
+            - f cannot be computed to such precision.
+            - Such precision is not needed.
+            - f is expected to be well-behaved at the root, implying the final
+              result does not require any refinement.
 
     Additional Notes
     ----------------
-    If f(x) produces nan, iterations are halted, and a result is returned.
 
-    If (x1, y1) and (x2, y2) do not give a bracket, then an estimate of the root
-        is returned as either mean(x1, x2) or the secant estimate of the root.
+        If f(x) produces nan, iterations are halted, and a result is returned.
 
-    The returned result may not have abs(f(x)) as minimal. This is because the root
-    needs to be surrounded on both sides instead of just close to 0. An anomalous
-    example would be f(x) = 1/x, for which x = 0 is the only point surrounded by
-    the bracket, despite being furthest from f(x) = 0.
+        If (x1, y1) and (x2, y2) do not give a bracket, then an estimate of the root
+            is returned as either mean(x1, x2) or the secant estimate of the root.
+
+        The returned result may not have abs(f(x)) as minimal. This is because the root
+        needs to be surrounded on both sides instead of just close to 0. An anomalous
+        example would be f(x) = 1/x, for which x = 0 is the only point surrounded by
+        the bracket, despite being furthest from f(x) = 0.
 
     Example
     -------
-    Finding the root of a cubic on the interval (-inf to +inf).
-    Write the polynomial in Horner's method to accurately handle
-    very large values of x properly.
-    The result is reached exactly in only 13 function evaluations,
-    despite the size of the initial bracketing interval.
-    >>> def f(x):
-    ...     return ((x - 1) * x + 2) * x - 5
-    ...
-    >>> x = solver(f, -inf, +inf)
-    >>> x, f(x)
-    (1.6398020042326555, 0.0)
+
+        Finding the root of a cubic on the interval (-inf to +inf).
+        Write the polynomial in Horner's method to accurately handle
+        very large values of x properly.
+        The result is reached exactly in only 13 function evaluations,
+        despite the size of the initial bracketing interval.
+        >>> def f(x):
+        ...     return ((x - 1) * x + 2) * x - 5
+        ...
+        >>> x = solver(f, -inf, +inf)
+        >>> x, f(x)
+        (1.6398020042326555, 0.0)
     """
     # Choose a bracketing method.
     if isinstance(method, str):
@@ -803,7 +825,7 @@ def solver(
         # Use arithmetic mean for bisection when x1 and x2 are close.
         elif between(0.25 * x1, x2, 4 * x1):
             x = mean(x1, x2)
-        # Use arithmetic or geometric mean for bisection at first.
+        # Use arithmetic or log-log mean for bisection at first.
         elif bisection_fails < 3:
             x = mean(x1, x2, bisection_flag)
         # Use generalized mean for bisection otherwise.
@@ -986,66 +1008,66 @@ def solver_generator(
 
     Yields
     ------
-    x_i: float
-        The next computed point, but f(x_i) may not be computed on the last iteration.
+        x_i:
+            The next computed point, but f(x_i) may not be computed on the last iteration.
 
     Returns
     -------
-    x: float
-        The best estimate of the bracketed root, which may not be yielded last,
-        and abs(f(x)) may not be the smallest. See below for more information.
+        x:
+            The best estimate of the bracketed root, which may not be yielded last,
+            and abs(f(x)) may not be the smallest. See below for more information.
 
     Notes
     -----
-    See help(solver) for information related to the solver() in general.
+        See `help(solver)` for information related to the `solver()` in general.
 
-    See help(roots) for sample usage.
+        See `help(pyroot)` for sample usage.
 
-    If generator.send() is used, then that point is used on the next
-    iteration as long as it lies in the bracketing interval.
+        If generator.send() is used, then that point is used on the next
+        iteration as long as it lies in the bracketing interval.
 
-    Initially, x1 is yielded followed by x2, but nothing is collected from
-    generator.send() for these first iterations. Use the x parameter for this instead.
+        Initially, x1 is yielded followed by x2, but nothing is collected from
+        generator.send() for these first iterations. Use the x parameter for this instead.
 
-    The returned result may not have abs(f(x)) as minimal. This is because the root
-    needs to be surrounded on both sides instead of just close to 0. An anomalous
-    example would be f(x) = 1/x, for which x = 0 is the only point surrounded by
-    the bracket, despite being furthest from f(x) = 0.
+        The returned result may not have abs(f(x)) as minimal. This is because the root
+        needs to be surrounded on both sides instead of just close to 0. An anomalous
+        example would be f(x) = 1/x, for which x = 0 is the only point surrounded by
+        the bracket, despite being furthest from f(x) = 0.
 
-    The last yielded value is not necessarily the final result. Instead, the
-    returned value is the final result, and may be accessed using `yield from`.
-    >>> def tabulate_results(f, x1, x2):
-    ...     x: float
-    ...     def get_x():
-    ...         nonlocal x
-    ...         x = yield from solver_generator(f, x1, x2)
-    ...     print(tabulate([(i, x_i, f(x_i)) for i, x_i in enumerate(get_x())], ("i", "x", "y")))
-    ...     print(f"Final result: {x}")
+        The last yielded value is not necessarily the final result. Instead, the
+        returned value is the final result, and may be accessed using `yield from`.
+        >>> def tabulate_results(f, x1, x2):
+        ...     x: float
+        ...     def get_x():
+        ...         nonlocal x
+        ...         x = yield from solver_generator(f, x1, x2)
+        ...     print(tabulate([(i, x_i, f(x_i)) for i, x_i in enumerate(get_x())], ("i", "x", "y")))
+        ...     print(f"Final result: {x}")
 
     Example
     -------
-    >>> from tabulate import tabulate
-    >>> def f(x):
-    ...     return ((x - 1) * x + 2) * x - 5
-    ...
-    >>> solutions = enumerate(solver_generator(f, x1, x2))
-    >>> print(tabulate([(i, x_i, f(x_i)) for i, x_i in solutions], ("i", "x", "y")))
-      i              x               y
-    ---  -------------  --------------
-      0  -1.79769e+308  -inf
-      1   1.79769e+308   inf
-      2   0               -5
-      3   8.98847e+307   inf
-      4   0.0078125       -4.98444
-      5   1.68361          0.30496
-      6   0.491764        -4.13938
-      7   1.62344         -0.11002
-      8   1.64042          0.00417759
-      9   1.6398           4.41056e-07
-     10   1.6398          -2.34301e-12
-     11   1.6398           2.13163e-14
-     12   1.6398          -1.95399e-14
-     13   1.6398           0
+        >>> from tabulate import tabulate
+        >>> def f(x):
+        ...     return ((x - 1) * x + 2) * x - 5
+        ...
+        >>> solutions = enumerate(solver_generator(f, x1, x2))
+        >>> print(tabulate([(i, x_i, f(x_i)) for i, x_i in solutions], ("i", "x", "y")))
+          i              x               y
+        ---  -------------  --------------
+          0  -1.79769e+308  -inf
+          1   1.79769e+308   inf
+          2   0               -5
+          3   8.98847e+307   inf
+          4   0.0078125       -4.98444
+          5   1.68361          0.30496
+          6   0.491764        -4.13938
+          7   1.62344         -0.11002
+          8   1.64042          0.00417759
+          9   1.6398           4.41056e-07
+         10   1.6398          -2.34301e-12
+         11   1.6398           2.13163e-14
+         12   1.6398          -1.95399e-14
+         13   1.6398           0
     """
     # Choose a bracketing method.
     if isinstance(method, str):
@@ -1121,7 +1143,7 @@ def solver_generator(
         # Use arithmetic mean for bisection when x1 and x2 are close.
         elif between(0.25 * x1, x2, 4 * x1):
             x = mean(x1, x2)
-        # Use arithmetic or geometric mean for bisection at first.
+        # Use arithmetic or log-log mean for bisection at first.
         elif bisection_fails < 3:
             x = mean(x1, x2, bisection_flag)
         # Use generalized mean for bisection otherwise.
