@@ -986,6 +986,140 @@ def solver(
     # If no best is found yet, return the next secant approximation of the root.
     return (y2*x1 - y1*x2) / (y2 - y1)
 
+def solver_simple(
+    f: Callable[[float], float],
+    x1: float,
+    x2: float,
+    *args: Any,
+    y1: float = nan,
+    y2: float = nan,
+    x: float = nan,
+    method: Union[str, BracketingMethod] = chandrupatla_mixed,
+    x_err: float = 0.0,
+    r_err: float = 4096 * epsilon,
+    mean: Callable[[float, float, float], float] = mean,
+    **kwargs: Any,
+) -> float:
+    """
+    A simpler root-finding implementation for academic purposes and easier portability.
+    """
+    # Choose a bracketing method.
+    if isinstance(method, str):
+        method = method.lower().replace("_", " ")
+    method = methods_dict.get(method, method)
+    # Cast values to floats to avoid weird integer stuff.
+    x1 = float(x1)
+    x2 = float(x2)
+    y1 = float(y1)
+    y2 = float(y2)
+    x = float(x)
+    x_err = float(x_err)
+    r_err = float(r_err)
+    # Round infinity down to the largest non-inf floats.
+    if isinf(x1):
+        x1 = sign(x1) * real_max
+    if isinf(x2):
+        x2 = sign(x2) * real_max
+    # Compute the bracketing points.
+    if isnan(y1):
+        y1 = f(x1)
+    if isnan(y2):
+        y2 = f(x2)
+    # Stop if there's no bracket to search in.
+    if x1 == x2 or isnan(y1) or isnan(y2) or y1 == y2:
+        return mean(x1, x2)
+    elif sign(y1) == sign(y2) or y1 == 0 or y2 == 0:
+        return (y2*x1 - y1*x2) / (y2 - y1)
+    # Set minimum possible errors possible.
+    x_err = max(x_err, 32 * real_min)
+    r_err = max(r_err, 32 * epsilon)
+    # Set maximum possible relative errors possible.
+    r_err = min(r_err, 0.5)
+    # Initialize iteration variables.
+    x3 = y3 = x4 = y4 = nan
+    t = 0.5
+    bisection_fails = 0
+    # Choose to use arithmetic or geometric mean,
+    # depending on how far apart x1 and x2 are.
+    bisection_flag = x_err > epsilon * abs(x1 - x2)
+    # Loop until convergence.
+    while abs(x1 - x2) > x_err + r_err * abs(x2) and y2 != 0 and not isnan(y2):
+        # Skip if given x is in the interval.
+        if between(x1, x, x2):
+            t = (x - x2) / (x1 - x2)
+        # Use t's formula.
+        elif t != 0.5:
+            x = x2 + t * (x1 - x2)
+        # Use arithmetic mean for bisection when x1 and x2 are close.
+        elif between(0.25 * x1, x2, 4 * x1):
+            x = mean(x1, x2)
+        # Use arithmetic or log-log mean.
+        else:
+            x = mean(x1, x2, bisection_flag)
+        # Round towards the midpoint with the tolerance.
+        tol = 0.25 * (x_err + r_err * abs(x))
+        x += tol * sign((x1 - x) + (x2 - x))
+        y = f(x)
+        # Update the estimate of the order of the root.
+        # Swap to ensure x is moved to x2 and sign(y1) != sign(y).
+        if sign(y) == sign(y1):
+            t = 1 - t
+            x1, x2 = x2, x1
+            y1, y2 = y2, y1
+        # Shift variables so that:
+        # (x1, x2, x3) -> (x1, x, x2, x3)
+        x2, x3, x4 = x, x2, x3
+        y2, y3, y4 = y, y2, y3
+        # Use bisection if x1 and x2 are too far apart (geometrically).
+        if not between(0.125 * x1, x2, 8 * x1):
+            # If the current type of mean used is not rapidly improving, switch means.
+            if (x1 - x2) / (x1 - x3) > 0.125:
+                bisection_flag = not bisection_flag
+            bisection_fails += 1
+        # Use bisection if the bracketing interval fails to halve.
+        elif t < 0.5:
+            bisection_fails += 1
+        # Don't use bisection if the bracketing interval more than halved.
+        elif t > 0.5:
+            bisection_fails = 0
+        # If the geometric mean is used and it fails to reduce the
+        # bracketing interval, more arithmetic means are needed.
+        elif (x1 - x2) / (x1 - x3) > 0.75:
+            bisection_flag = not bisection_flag
+            bisection_fails += 1
+        # If the current mean used is only okay, switch means and
+        # attempt to use the bracketing method instead.
+        elif (x1 - x2) / (x1 - x3) > 0.125:
+            bisection_flag = not bisection_flag
+            bisection_fails = 0
+        # If the geometric mean is used and significantly reduces the
+        # bracketing interval, don't switch means and try the
+        # bracketing method instead.
+        else:
+            bisection_fails = 0
+        # Resort to bisection if convergence failed to happen more than 3 times in a row.
+        if bisection_fails > 3:
+            t = 0.5
+        # Try the current bracketing method if corrections are not necessary.
+        elif bisection_fails < 3:
+            t = method(t, x1, y1, x2, y2, x3, y3, x4, y4, *args, **kwargs)
+            # Use bisection if out of bounds.
+            if not 0 < t < 1:
+                t = 0.5
+        # On the 3rd failure to bracket the root, attempt to balance
+        # out the root with a shifted estimate of the root.
+        else:
+            # Try the Illinois method by faking the y values.
+            y_temp = 0.5 * y3 * ((x1 - x2) / (x3 - x2))
+            t = method(t, x1, y_temp, x2, y2, x3, y3, x4, y4, *args, **kwargs)
+            # Resort to double-stepping if Illinois has no effect.
+            if t == method(t, x1, y1, x2, y2, x3, y3, x4, y4, *args, **kwargs):
+                t *= 2
+            # Don't go past bisection.
+            t = min(0.5, t)
+    # Return the next secant approximation of the root.
+    return (y2*x1 - y1*x2) / (y2 - y1)
+
 def solver_generator(
     f: Callable[[float], float],
     x1: float,
