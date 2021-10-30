@@ -1318,3 +1318,36 @@ def solver_generator(
     if x1 != x != x2:
         yield x
     return x
+
+def solver_table(f: Callable[[float], float], *args: Any, **kwargs: Any) -> str:
+    """
+    A helper method for `solver_generator` which generates the `(i, x, y)` results and tabulates them.
+
+    See `solver_generator` for additional documentation.
+
+    Example
+    --------
+        >>> from pyroot import solver_table
+        >>> print(solver_table(lambda x: x*x - 2, 0, float("inf")))
+          i             x              y
+        ---  ------------  -------------
+          0  0              -2
+          1  1.79769e+308  inf
+          2  1              -1
+          3  3.15625         7.96191
+          4  2.07812         2.3186
+          5  1.41791         0.0104761
+          6  1.41421         2.2371e-11
+          7  1.41421        -9.20375e-13
+          8  1.41421         9.09051e-13
+          9  1.41421        -4.44089e-16
+         10  1.41421         8.88178e-16
+         11  1.41421         4.44089e-16
+        x = 1.4142135623730951
+    """
+    from tabulate import tabulate
+    x: float
+    def get_x():
+        nonlocal x
+        x = yield from solver_generator(f, *args, **kwargs)
+    return tabulate([(i, x, f(x)) for i, x in enumerate(get_x())], ("i", "x", "y")) + f"\nx = {x}"
