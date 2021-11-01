@@ -808,12 +808,6 @@ def solver(
     # the root is closer to the smaller point.
     if not bisection_flag and isnan(x) and sign(x1) == sign(x2):
         x = nextafter(*sorted([x1, x2], key=abs))
-    # Estimate the order of the root as we go.
-    order1 = 1
-    order2 = 0.875
-    order3 = nan
-    def order_error(order: float) -> float:
-        return signed_pow((signed_pow(y2, order) + (signed_pow(y1, order) - signed_pow(y2, order)) * (x - x2) / (x1 - x2) - signed_pow(y, order)), 1/order)
     # Loop until convergence.
     while abs(x1 - x2) > x_err + r_err * abs(x2) and y2 != 0 and not isnan(y2):
         # Skip if given x is in the interval.
@@ -839,22 +833,6 @@ def solver(
         tol = 0.25 * (x_tol + r_tol * abs(x))
         x += tol * sign((x1 - x) + (x2 - x))
         y = f(x)
-        # Update the estimate of the order of the root.
-        try:
-            new_order = order1 - order_error(order1) * (order1 - order2) / (order_error(order1) - order_error(order2))
-        except (OverflowError, ZeroDivisionError):
-            pass
-        else:
-            # Don't update it to nan, which may occur during inf / inf.
-            if isnan(new_order):
-                pass
-            # Avoid chaotic changes to the order estimation by allowing it to at most either halve or double.
-            elif isnan(order3):
-                order1, order2, order3 = min(max(new_order, 0.5 * order1), 2 * order1), order1, order2
-            # Use Aitken delta-squared acceleration.
-            else:
-                new_order -= (new_order - order1) ** 2 / ((new_order - order1) - (order1 - order2))
-                order1, order2, order3 = min(max(new_order, 0.5 * order1), 2 * order1), order1, nan
         # Swap to ensure x is moved to x2 and sign(y1) != sign(y).
         if sign(y) == sign(y1):
             t = 1 - t
@@ -922,15 +900,7 @@ def solver(
             elif t == 0:
                 t = 0.5
         # Try the current bracketing method if corrections are not necessary.
-        elif bisection_fails == 2:
-            try:
-                t = method(t, x1, signed_pow(y1, order1), x2, signed_pow(y2, order1), x3, signed_pow(y3, order1), x4, signed_pow(y4, order1), *args, **kwargs)
-            except OverflowError:
-                t = method(t, x1, y1, x2, y2, x3, y3, x4, y4, *args, **kwargs)
-            # Use bisection if out of bounds.
-            if not 0 < t < 1:
-                t = 0.5
-        elif bisection_fails < 2:
+        elif bisection_fails < 3:
             t = method(t, x1, y1, x2, y2, x3, y3, x4, y4, *args, **kwargs)
             # Use bisection if out of bounds.
             if not 0 < t < 1:
@@ -939,14 +909,8 @@ def solver(
         # out the root with a shifted estimate of the root.
         else:
             # Try the Illinois method by faking the y values.
-            # Also attempt to linearize the estimate of the root.
-            try:
-                y_temp = 0.5 * signed_pow(y3, order1) * ((x1 - x2) / (x3 - x2))
-            except OverflowError:
-                y_temp = 0.5 * y3 * ((x1 - x2) / (x3 - x2))
-                t = method(t, x1, y_temp, x2, y2, x3, y3, x4, y4, *args, **kwargs)
-            else:
-                t = method(t, x1, y_temp, x2, signed_pow(y2, order1), x3, signed_pow(y3, order1), x4, signed_pow(y4, order1), *args, **kwargs)
+            y_temp = 0.5 * y3 * ((x1 - x2) / (x3 - x2))
+            t = method(t, x1, y_temp, x2, y2, x3, y3, x4, y4, *args, **kwargs)
             # Resort to double-stepping if Illinois has no effect.
             if t == method(t, x1, y1, x2, y2, x3, y3, x4, y4, *args, **kwargs):
                 t *= 2
@@ -957,11 +921,6 @@ def solver(
         # Use a secant estimate of the root.
         # Note the formula is numerically stable and good for high precision.
         x = (y2*x1 - y1*x2) / (y2 - y1)
-        if i > 3:
-            try:
-                x = (signed_pow(y2, order1) * x1 - signed_pow(y1, order1) * x2) / (signed_pow(y2, order1) - signed_pow(y1, order1))
-            except (OverflowError, ZeroDivisionError):
-                pass
         # Round towards the middle, except for the first iteration.
         if i > 0:
             x = nextafter(x, mean(x1, x2))
@@ -970,11 +929,6 @@ def solver(
             break
         # Compute the next point.
         y = f(x)
-        # Update the estimate of the order of the root.
-        try:
-            order1, order2 = order1 - order_error(order1) * (order1 - order2) / (order_error(order1) - order_error(order2)), order1
-        except (OverflowError, ZeroDivisionError):
-            pass
         # Stop if the root is found.
         if isnan(y) or y == 0:
             return x
@@ -1060,7 +1014,6 @@ def solver_simple(
         tol = 0.25 * (x_err + r_err * abs(x))
         x += tol * sign((x1 - x) + (x2 - x))
         y = f(x)
-        # Update the estimate of the order of the root.
         # Swap to ensure x is moved to x2 and sign(y1) != sign(y).
         if sign(y) == sign(y1):
             t = 1 - t
@@ -1260,12 +1213,6 @@ def solver_generator(
     # the root is closer to the smaller point.
     if not bisection_flag and isnan(x) and sign(x1) == sign(x2):
         x = nextafter(*sorted([x1, x2], key=abs))
-    # Estimate the order of the root as we go.
-    order1 = 1
-    order2 = 0.875
-    order3 = nan
-    def order_error(order: float) -> float:
-        return signed_pow((signed_pow(y2, order) + (signed_pow(y1, order) - signed_pow(y2, order)) * (x - x2) / (x1 - x2) - signed_pow(y, order)), 1/order)
     # Loop until convergence.
     while abs(x1 - x2) > x_err + r_err * abs(x2) and y2 != 0 and not isnan(y2):
         # Skip if given x is in the interval.
@@ -1291,25 +1238,6 @@ def solver_generator(
         tol = 0.25 * (x_tol + r_tol * abs(x))
         x += tol * sign((x1 - x) + (x2 - x))
         y = f(x)
-        # Update the estimate of the order of the root.
-        try:
-            new_order = order1 - order_error(order1) * (order1 - order2) / (order_error(order1) - order_error(order2))
-        except (OverflowError, ZeroDivisionError):
-            pass
-        else:
-            # Don't update it to nan, which may occur during inf / inf.
-            if isnan(new_order):
-                pass
-            # Avoid chaotic changes to the order estimation by allowing it to at most either halve or double.
-            elif isnan(order3):
-                order1, order2, order3 = min(max(new_order, 0.5 * order1), 2 * order1), order1, order2
-            # Use Aitken delta-squared acceleration.
-            else:
-                try:
-                    new_order -= (new_order - order1) ** 2 / ((new_order - order1) - (order1 - order2))
-                except ZeroDivisionError:
-                    pass
-                order1, order2, order3 = min(max(new_order, 0.5 * order1), 2 * order1), order1, nan
         # Swap to ensure x is moved to x2 and sign(y1) != sign(y).
         if sign(y) == sign(y1):
             t = 1 - t
@@ -1381,15 +1309,7 @@ def solver_generator(
             elif t == 0:
                 t = 0.5
         # Try the current bracketing method if corrections are not necessary.
-        elif bisection_fails == 2:
-            try:
-                t = method(t, x1, signed_pow(y1, order1), x2, signed_pow(y2, order1), x3, signed_pow(y3, order1), x4, signed_pow(y4, order1), *args, **kwargs)
-            except OverflowError:
-                t = method(t, x1, y1, x2, y2, x3, y3, x4, y4, *args, **kwargs)
-            # Use bisection if out of bounds.
-            if not 0 < t < 1:
-                t = 0.5
-        elif bisection_fails < 2:
+        elif bisection_fails < 3:
             t = method(t, x1, y1, x2, y2, x3, y3, x4, y4, *args, **kwargs)
             # Use bisection if out of bounds.
             if not 0 < t < 1:
@@ -1398,14 +1318,8 @@ def solver_generator(
         # out the root with a shifted estimate of the root.
         else:
             # Try the Illinois method by faking the y values.
-            # Also attempt to linearize the estimate of the root.
-            try:
-                y_temp = 0.5 * signed_pow(y3, order1) * ((x1 - x2) / (x3 - x2))
-            except OverflowError:
-                y_temp = 0.5 * y3 * ((x1 - x2) / (x3 - x2))
-                t = method(t, x1, y_temp, x2, y2, x3, y3, x4, y4, *args, **kwargs)
-            else:
-                t = method(t, x1, y_temp, x2, signed_pow(y2, order1), x3, signed_pow(y3, order1), x4, signed_pow(y4, order1), *args, **kwargs)
+            y_temp = 0.5 * y3 * ((x1 - x2) / (x3 - x2))
+            t = method(t, x1, y_temp, x2, y2, x3, y3, x4, y4, *args, **kwargs)
             # Resort to double-stepping if Illinois has no effect.
             if t == method(t, x1, y1, x2, y2, x3, y3, x4, y4, *args, **kwargs):
                 t *= 2
@@ -1419,11 +1333,6 @@ def solver_generator(
         # Use a secant estimate of the root.
         # Note the formula is numerically stable and good for high precision.
         x = (y2*x1 - y1*x2) / (y2 - y1)
-        if i > 3:
-            try:
-                x = (signed_pow(y2 / y1, order1) * x1 - x2) / (signed_pow(y2 / y1, order1) - 1)
-            except (OverflowError, ZeroDivisionError):
-                pass
         # Round towards the middle, except for the first iteration.
         if i > 0:
             x = nextafter(x, mean(x1, x2))
@@ -1433,11 +1342,6 @@ def solver_generator(
         # Compute the next point.
         yield x
         y = f(x)
-        # Update the estimate of the order of the root.
-        try:
-            order1, order2 = order1 - order_error(order1) * (order1 - order2) / (order_error(order1) - order_error(order2)), order1
-        except (OverflowError, ZeroDivisionError):
-            pass
         # Stop if the root is found.
         if isnan(y) or y == 0:
             return x
