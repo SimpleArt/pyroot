@@ -175,6 +175,68 @@ def mean(x: float, y: float, /, order: float = 1) -> float:
     """
     return log_log_mean(x, y) if order == 0 else generalized_mean(x, y, order=order)
 
+def linear_interpolation(x1: float, y1: float, x2: float, y2: float) -> float:
+    if sign(y1) == sign(y2):
+        return (x1 * y2 - x2 * y1) / (y2 - y1)
+    elif abs(y1) < abs(y2):
+        return x1 - y1 * (x2 - x1) / (y2 - y1)
+    else:
+        return x2 - y2 * (x2 - x1) / (y2 - y1)
+
+def quadratic_interpolation(x1: float, y1: float, x2: float, y2: float, x3: float, y3: float, iterations: int = 2) -> float:
+    # Collect coefficients for Newton's polynomial interpolation.
+    a = (y1 - y2) / (x1 - x2)
+    b = (y2 - y3) / (x2 - x3)
+    b = (a - b) / (x1 - x3)
+    # If the points are collinear, use the secant estimate.
+    if b == 0:
+        return y2 / (y2 - y1)
+    # Collect starting point for Newton's method.
+    # Align with the convexity of the polynomial interpolation
+    # to guarantee Newton's method lands in the current bracket.
+    x = x2 if sign(b) == sign(y2) else x1
+    # Apply Newton's method several times.
+    for _ in range(iterations):
+        # Numerically stable formula.
+        x -= (y2 + a * (x-x2) + b * (x-x1) * (x-x2)) / (a + b * ((x-x1) + (x-x2)))
+    return x
+
+def inverse_quadratic_interpolation(x1: float, y1: float, x2: float, y2: float, x3: float, y3: float) -> float:
+    # Numerically stable formulas.
+    al = (x3 - x2) / (x1 - x2)
+    a = y2 / (y1 - y2)
+    b = y3 / (y1 - y3)
+    c = y2 / (y3 - y2)
+    d = y1 / (y3 - y1)
+    return x2 + (a*b + c*d*al) * (x1 - x2)
+
+def is_quadratic_linear(x1: float, y1: float, x2: float, y2: float, x3: float, y3: float) -> bool:
+    if not between(y1, y2, y3):
+        return False
+    # Measure the ratios of the differences.
+    x = (x2 - x1) / (x3 - x1)
+    y = (y2 - y1) / (y3 - y1)
+    # Bound x2 by a quadratic curve between x1 and x3.
+    return x**2 < y < 1 - (1 - x)**2
+
+def is_inverse_quadratic_linear(x1: float, y1: float, x2: float, y2: float, x3: float, y3: float) -> bool:
+    if not between(y1, y2, y3):
+        return False
+    # Measure the ratios of the differences.
+    x = (x2 - x1) / (x3 - x1)
+    y = (y2 - y1) / (y3 - y1)
+    # Bound x2 by an inverse quadratic curve between x1 and x3.
+    return y**2 < x < 1 - (1 - y)**2
+
+def is_super_linear(x1: float, y1: float, x2: float, y2: float, x3: float, y3: float) -> bool:
+    if not between(y1, y2, y3):
+        return False
+    # Measure the ratios of the differences.
+    x = (x2 - x1) / (x3 - x1)
+    y = (y2 - y1) / (y3 - y1)
+    # Bound x2 by an inverse quadratic curve between x1 and x3.
+    return x**2 < y < 1 - (1 - x)**2 and y**2 < x < 1 - (1 - y)**2
+
 class BracketingMethod(Protocol):
     """
     Protocol for bracketing methods.
