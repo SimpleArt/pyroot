@@ -1352,7 +1352,7 @@ def solver_generator(
             continue
         x = nan
         # Resort to bisection if convergence failed to happen more than 3 times in a row.
-        if bisection_fails > 3:
+        if bisection_fails > 5:
             t = 0.5
         # If x2 and x3 are significantly closer to each other than x1,
         # attempt to use the secant method without (x1, y1). Over-step
@@ -1381,7 +1381,7 @@ def solver_generator(
             elif t == 0:
                 t = 0.5
         # Try the current bracketing method if corrections are not necessary.
-        elif bisection_fails < 3:
+        elif bisection_fails < 5:
             t = method(t, x1, y1, x2, y2, x3, y3, x4, y4, *args, **kwargs)
             # Use bisection if out of bounds.
             if not 0 < t < 1:
