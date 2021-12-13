@@ -5,6 +5,10 @@ Abstract
 
 The purpose of this Python library is to provide implementations of advanced bracketed root-finding methods for single-variable functions. These methods are meant to both guarantee convergence and also minimize the number of function calls made, even if extremely poor estimates of the root are initially provided or the function is not very well-behaved.
 
+
+## See our [wiki](https://github.com/SimpleArt/pyroot/wiki) for more information.
+
+
 The following root-finding methods are implemented:
 
 - [Bisection](https://en.wikipedia.org/wiki/Bisection_method) / Binary Search.
@@ -16,6 +20,8 @@ The following root-finding methods are implemented:
 - [Chandrupatla's method](https://dl.acm.org/doi/10.1016/S0965-9978%2896%2900051-8).
 - Chandrupatla-Quadratic / Quadratic-safe method (experimental).
 - Chandrupatla-Mixed method (default/experimental).
+
+
 
 **Note**: The implementations may not precisely match specified methods. This is because a variety of additional features are incorporated to guarantee convergence of every method is rapid and tight, even in the face of initial estimates such as `(-inf, inf)`. For example, the traditional bisection method fails to convergence to the correct order of magnitude rapidly e.g. it goes from `(1e0, 1e300)` to `5e299` instead of `1e150`. Additionally, method's such as Brent's method may also produce "stagnant points", where the upper or lower bound of the root doesn't improve during iterations. For these reasons, modifications are made which generally improve convergence.
 
