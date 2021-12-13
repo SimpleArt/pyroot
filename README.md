@@ -1,5 +1,4 @@
-pyroot
-======
+![pyroot](https://raw.githubusercontent.com/SimpleArt/pyroot/media/images/logo.png)
 
 Abstract
 --------
