@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name='PyRoot',
-    version='0.0.1',
+    version='0.1.0',
     description='The purpose of this Python library is to provide implementations of advanced bracketed root-finding methods for single-variable functions.',
     packages=setuptools.find_packages(),
     python_requires='>=3.6',
