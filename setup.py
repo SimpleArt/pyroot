@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 
 setuptools.setup(
-    name='EasyNN',
+    name='PyRoot',
     version='0.0.1',
     description='The purpose of this Python library is to provide implementations of advanced bracketed root-finding methods for single-variable functions.',
     packages=setuptools.find_packages(),
