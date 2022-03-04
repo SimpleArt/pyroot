@@ -31,6 +31,7 @@ __all__ = [
     "newton",
     "newton_quadratic",
     "nextafter",
+    "rk45",
     "sign",
     "signed_pow",
     "solver",
@@ -251,6 +252,7 @@ class BracketingMethod(Protocol):
         y3: float,
         x4: float,
         y4: float,
+        /,
         *args: Any,
         **kwargs: Any,
     ) -> float:
@@ -270,6 +272,7 @@ def bisection(
     y3: float,
     x4: float,
     y4: float,
+    /,
 ) -> float:
     """Always use the mean of x1 and x2."""
     return 0.5
@@ -284,7 +287,8 @@ def newton(
     y3: float,
     x4: float,
     y4: float,
-    fprime: Callable[[float], float] = None,
+    /,
+    fprime: Callable[[float, float], float] = None,
     classic: bool = False,
 ) -> float:
     """
@@ -299,6 +303,9 @@ def newton(
             **Note:
                 If the NR method goes out of the bracketing interval,
                 then bisection is used instead.
+            **Note:
+                `fprime` takes two arguments, `fprime(x, y)`, which
+                let's the derivative be written in terms of `y`.
 
         classic, default False:
             If fprime is given and classic is True, then the classic
@@ -314,9 +321,9 @@ def newton(
     -------
 
         >>> def f(x):
-        ...     return x*x - 4
+        ...     return x * x - 4
         ...
-        >>> def fprime(x):
+        >>> def fprime(x, y):
         ...     return 2 * x
         ...
         >>> solver(f, 0, 5, fprime, method="newton", classic=True)
@@ -346,7 +353,7 @@ def newton(
     # Estimate halfway between the root and x2.
     x = x2 + 0.5 * t * (x1 - x2)
     # Use the derivative.
-    yprime = fprime(x)
+    yprime = fprime(x, y2 / 2)
     # If division by 0 occurs, use bisection.
     return 0.5 if yprime == 0 else y2 / (yprime * (x2 - x1))
 
@@ -360,6 +367,7 @@ def newton_quadratic(
     y3: float,
     x4: float,
     y4: float,
+    /,
 ) -> float:
     """
     Estimates the given function using a polynomial interpolation
@@ -397,6 +405,7 @@ def dekker(
     y3: float,
     x4: float,
     y4: float,
+    /,
 ) -> float:
     """
     Estimates the root using Dekker's method.
@@ -432,6 +441,7 @@ def brent(
     y3: float,
     x4: float,
     y4: float,
+    /,
 ) -> float:
     """
     Estimates the root using Brent's method.
@@ -480,6 +490,7 @@ def chandrupatla(
     y3: float,
     x4: float,
     y4: float,
+    /,
 ) -> float:
     """
     Estimates the root using Chandrupatla's method.
@@ -520,6 +531,7 @@ def chandrupatla_quadratic(
     y3: float,
     x4: float,
     y4: float,
+    /,
 ) -> float:
     """
     Estimates the root using Chandrupatla's method with quadratic
@@ -576,6 +588,7 @@ def chandrupatla_mixed(
     y3: float,
     x4: float,
     y4: float,
+    /,
 ) -> float:
     """
     Estimates the root using Chandrupatla's method with both inverse
@@ -637,6 +650,49 @@ def chandrupatla_mixed(
     else:
         return 0.5
 
+def rk45(
+    t: float,
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+    x3: float,
+    y3: float,
+    x4: float,
+    y4: float,
+    /,
+    fprime: Callable[[float, float], float],
+) -> float:
+    """
+    Estimates the root using the RK45 method applied to the inverse
+    function, provided `yprime = fprime(x, y)`. Similar to Newton's
+    method, the RK45 method uses derivatives. Unlike all of the other
+    methods, the RK45 method uses more `fprime` than `f` calls. This
+    improves efficiency if `fprime` is easier to compute than `f`.
+
+    Additionally, the RK45 has high stability and order of convergence.
+    Compared to other methods, its interpolation steps tend to be more
+    accurate and are effective at further distances from the root or on
+    more pathalogical roots.
+    """
+    yprime1 = fprime(x2, y2)
+    if yprime1 == 0:
+        return y2 / (y2 - y1)
+    k1 = -y2 / yprime1
+    yprime2 = fprime(x2 + k1 / 2, y2 / 2)
+    if yprime2 == 0:
+        return y2 / (y2 - y1)
+    k2 = -y2 / yprime2
+    yprime3 = fprime(x2 + k2 / 2, y2 / 2)
+    if yprime3 == 0:
+        return y2 / (y2 - y1)
+    k3 = -y2 / yprime3
+    yprime4 = fprime(x2 + k3, 0)
+    if yprime4 == 0:
+        return y2 / (y2 - y1)
+    k4 = -y2 / yprime4
+    return (k1 + 2*k2 + 2*k3 + k4) / (6 * (x1 - x2))
+
 methods_dict: Dict[str, BracketingMethod] = {
     'bisection'              : bisection,
     'binary search'          : bisection,
@@ -657,12 +713,15 @@ methods_dict: Dict[str, BracketingMethod] = {
     'chandrupatla quadratic' : chandrupatla_quadratic,
     'quadratic safe'         : chandrupatla_quadratic,
     'chandrupatla mixed'     : chandrupatla_mixed,      # default
+    'rk45'                   : rk45,
+    'runge kutta'            : rk45,
 }
 
 def solver(
     f: Callable[[float], float],
     x1: float,
     x2: float,
+    /,
     *args: Any,
     y1: float = nan,
     y2: float = nan,
@@ -978,6 +1037,7 @@ def solver_simple(
     f: Callable[[float], float],
     x1: float,
     x2: float,
+    /,
     *args: Any,
     y1: float = nan,
     y2: float = nan,
@@ -1391,7 +1451,7 @@ def solver_generator(
         yield x
     return x
 
-def solver_table(f: Callable[[float], float], *args: Any, **kwargs: Any) -> str:
+def solver_table(f: Callable[[float], float], /, *args: Any, **kwargs: Any) -> str:
     """
     A helper method for `solver_generator` which generates the `(i, x, y)` results and tabulates them.
 

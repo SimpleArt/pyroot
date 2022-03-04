@@ -37,4 +37,33 @@ Example
      13   1.6398           0
     x = 1.6398020042326555
 """
-from pyroot.pyroot import *
+from ._pyroot import *
+
+# Things for export.
+__all__ = [
+    "arithmetic_mean",
+    "between",
+    "bisection",
+    "brent",
+    "chandrupatla",
+    "chandrupatla_mixed",
+    "chandrupatla_quadratic",
+    "dekker",
+    "epsilon",
+    "generalized_mean",
+    "geometric_mean",
+    "log_log_mean",
+    "mean",
+    "methods_dict",
+    "newton",
+    "newton_quadratic",
+    "nextafter",
+    "rk45",
+    "sign",
+    "signed_pow",
+    "solver",
+    "solver_generator",
+    "solver_table",
+]
+
+__version__ = "0.2.0"
