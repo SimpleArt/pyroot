@@ -13,7 +13,7 @@ from collections import defaultdict
 from math import cos, e, exp, fsum, inf, isinf, log, nan, pi, sin, sqrt
 from itertools import chain
 from tabulate import tabulate
-from ._pyroot import methods_dict, real_max, real_min, sign, solver, solver_generator
+from pyroot import methods_dict, real_max, real_min, sign, solver, solver_generator
 
 # Version dependent imports.
 if sys.version_info[:2] >= (3, 9):
