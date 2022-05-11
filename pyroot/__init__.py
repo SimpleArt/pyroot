@@ -10,60 +10,43 @@ the root are initially provided or the function is not very well-behaved.
 
 Example
 -------
-    >>> from pyroot import solver, solver_table
+    >>> from math import inf
+    >>> from pyroot import root_in, root_iter
+    >>> 
     >>> def f(x):
     ...     return ((x - 1) * x + 2) * x - 5
     ...
-    >>> inf = float("inf")
     >>> x = solver(f, -inf, +inf)
     >>> x, f(x)
     (1.6398020042326555, 0.0)
-    >>> print(solver_table(f, -inf, +inf))
-      i              x               y
-    ---  -------------  --------------
-      0  -1.79769e+308  -inf
-      1   1.79769e+308   inf
-      2   0               -5
-      3   1               -3
-      4   4.09375         55.035
-      5   2.54688         10.1277
-      6   1.77344          0.979398
-      7   1.65035          0.0720223
-      8   1.63923         -0.00387468
-      9   1.6398           1.76943e-05
-     10   1.6398           1.31717e-11
-     11   1.6398          -2.53042e-12
-     12   1.6398           2.53042e-12
-     13   1.6398           0
-    x = 1.6398020042326555
+    >>> 
+    >>> for i, x in enumerate(root_iter(f, -inf, +inf)):
+    ...     print(f"{i:>3d}  {x:>25.16E}  {f(x):>25.16f}")
+    ... 
+      0   -1.7976931348623157E+308                       -inf
+      1    1.7976931348623157E+308                        inf
+      2     0.0000000000000000E+00        -5.0000000000000000
+      3     7.8125000000000000E-03        -4.9844355583190918
+      4     2.5371467728470156E+00         9.9690821682950936
+      5     8.6537227493019742E-01        -3.3700740034394583
+      6     1.3056110594089907E+00        -1.8678270842189817
+      7     1.8529844070606760E+00         1.6347344594925595
+      8     1.6166487295283405E+00        -0.1550583332176085
+      9     1.6407097528123704E+00         0.0061643449464510
+     10     1.6397998719520530E+00        -0.0000144722990747
+     11     1.6398020042561847E+00         0.0000000001596980
+     12     1.6398020042326498E+00        -0.0000000000000400
+     13     1.6398020042326615E+00         0.0000000000000400
+     14     1.6398020042326555E+00         0.0000000000000000
 """
-from ._pyroot import *
+import sys
+
+if sys.version_info < (3, 9):
+    from ._pyroot_old import *
+else:
+    from ._pyroot_new import *
 
 # Things for export.
-__all__ = [
-    "arithmetic_mean",
-    "between",
-    "bisection",
-    "brent",
-    "chandrupatla",
-    "chandrupatla_mixed",
-    "chandrupatla_quadratic",
-    "dekker",
-    "epsilon",
-    "generalized_mean",
-    "geometric_mean",
-    "log_log_mean",
-    "mean",
-    "methods_dict",
-    "newton",
-    "newton_quadratic",
-    "nextafter",
-    "rk45",
-    "sign",
-    "signed_pow",
-    "solver",
-    "solver_generator",
-    "solver_table",
-]
+__all__ = ["root_in", "root_iter"]
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"

@@ -1,27 +1,22 @@
 from setuptools import setup
 
-with open("README.md", "r", encoding="utf-8") as fh:
-    long_description = fh.read()
-
+with open("README.md", "r", encoding="utf-8") as file:
+    long_description = file.read()
 
 setup(
     name='PyRoot',
-    version='0.2.0',
+    version='0.3.0',
     description='The purpose of this Python library is to provide implementations of advanced bracketed root-finding methods for single-variable functions.',
     packages=["pyroot"],
-    python_requires='>=3.6',
+    python_requires='>=3.8',
     url="https://github.com/SimpleArt/pyroot",
-    author="Jack Nguyen, Daniel Wilczak",
-    author_email="danielwilczak101@gmail.com",
+    author="Jack Nguyen",
+    author_email="jackyeenguyen@gmail.com",
     long_description = long_description,
     long_description_content_type = "text/markdown",
     classifiers=[
-        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.8",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
-    ],
-    install_requires = [
-        "tabulate >=0.8.7",
-        "numpy >=1.21.3"
     ],
 )
