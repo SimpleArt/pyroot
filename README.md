@@ -3,7 +3,11 @@
 Abstract
 --------
 
-The purpose of this Python library is to provide implementations of advanced bracketed root-finding methods for single-variable functions. These methods are meant to both guarantee convergence and also minimize the number of function calls made, even if extremely poor estimates of the root are initially provided or the function is not very well-behaved.
+The purpose of this Python library is to provide implementations of
+advanced bracketed root-finding methods for single-variable functions.
+These methods are meant to both guarantee convergence and also minimize
+the number of function calls made, even if extremely poor estimates of
+the root are initially provided or the function is not very well-behaved.
 
 
 ## See our [wiki](https://github.com/SimpleArt/pyroot/wiki) for more information.
@@ -14,63 +18,54 @@ The following root-finding methods are implemented:
 - [Bisection](https://en.wikipedia.org/wiki/Bisection_method) / Binary Search.
 - [Newt-Safe](https://www.youtube.com/watch?v=FD3BPTMGJds) / [Newton's method](https://en.wikipedia.org/wiki/Newton%27s_method).
 - [Secant](https://en.wikipedia.org/wiki/Secant_method) / [Regula Falsi](https://en.wikipedia.org/wiki/Regula_falsi) / False Position.
-- [Muller's method](https://en.wikipedia.org/wiki/Muller%27s_method).
-- [Dekker's method](https://en.wikipedia.org/wiki/Brent%27s_method#Dekker's_method).
-- [Brent's method](https://en.wikipedia.org/wiki/Brent%27s_method).
 - [Chandrupatla's method](https://dl.acm.org/doi/10.1016/S0965-9978%2896%2900051-8).
-- Chandrupatla-Quadratic / Quadratic-safe method (experimental).
-- Chandrupatla-Mixed method (default/experimental).
+- Non-simple.
 
 
 
 **Note**: The implementations may not precisely match specified methods. This is because a variety of additional features are incorporated to guarantee convergence of every method is rapid and tight, even in the face of initial estimates such as `(-inf, inf)`. For example, the traditional bisection method fails to convergence to the correct order of magnitude rapidly e.g. it goes from `(1e0, 1e300)` to `5e299` instead of `1e150`. Additionally, method's such as Brent's method may also produce "stagnant points", where the upper or lower bound of the root doesn't improve during iterations. For these reasons, modifications are made which generally improve convergence.
 
+
+
 Example
 -------
-
 ```python
-from pyroot import solver, solver_table
-from tabulate import tabulate  # https://pypi.org/project/tabulate/
+from math import inf
+from pyroot import root_in, root_iter
 
-inf = float("inf")
-
-# A function whose root is being searched for.
 def f(x):
-    """x^3 - x^2 + 2x - 5 written with Horner's method."""
     return ((x - 1) * x + 2) * x - 5
 
-# Use the default root-finder.
 x = solver(f, -inf, +inf)
-table = solver_table(f, -inf, +inf)
-
-# Print the results.
-print(f"x = {x}")
-print(f"f(x) = {f(x)}")
+print(x)
+print(f(x))
 print()
-print(table)
-```
-Output:
-```
-x = 1.6398020042326555
-f(x) = 0.0
 
-  i              x               y
----  -------------  --------------
-  0  -1.79769e+308  -inf
-  1   1.79769e+308   inf
-  2   0               -5
-  3   1               -3
-  4   4.09375         55.035
-  5   2.54688         10.1277
-  6   1.77344          0.979398
-  7   1.65035          0.0720223
-  8   1.63923         -0.00387468
-  9   1.6398           1.76943e-05
- 10   1.6398           1.31717e-11
- 11   1.6398          -2.53042e-12
- 12   1.6398           2.53042e-12
- 13   1.6398           0
-x = 1.6398020042326555
+for i, x in enumerate(root_iter(f, -inf, +inf)):
+    print(f"{i:>3d}  {x:>25.16E}  {f(x):>25.16f}")
+```
+
+Output:
+
+```
+1.6398020042326555
+0.0
+
+  0   -1.7976931348623157E+308                       -inf
+  1    1.7976931348623157E+308                        inf
+  2     0.0000000000000000E+00        -5.0000000000000000
+  3     7.8125000000000000E-03        -4.9844355583190918
+  4     2.5371467728470156E+00         9.9690821682950936
+  5     8.6537227493019742E-01        -3.3700740034394583
+  6     1.3056110594089907E+00        -1.8678270842189817
+  7     1.8529844070606760E+00         1.6347344594925595
+  8     1.6166487295283405E+00        -0.1550583332176085
+  9     1.6407097528123704E+00         0.0061643449464510
+ 10     1.6397998719520530E+00        -0.0000144722990747
+ 11     1.6398020042561847E+00         0.0000000001596980
+ 12     1.6398020042326498E+00        -0.0000000000000400
+ 13     1.6398020042326615E+00         0.0000000000000400
+ 14     1.6398020042326555E+00         0.0000000000000000
 ```
 
 Rationale

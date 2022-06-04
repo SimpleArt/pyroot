@@ -3,10 +3,13 @@ GitHub:
     https://github.com/SimpleArt/pyroot
 
 The purpose of this Python library is to provide implementations of
-advanced bracketed root-finding methods for single-variable functions.
-These methods are meant to both guarantee convergence and also minimize
-the number of function calls made, even if extremely poor estimates of
-the root are initially provided or the function is not very well-behaved.
+advanced bracketed root-finding methods. For deterministic univariate
+functions, `pyroot` provides guaranteed fast convergence, minimizing
+the number of function calls needed, even if extremely poor initial
+estimates are provided or if the function is not very well-behaved.
+Additionally, implementations of bracketing-like methods are provided
+for stochastic univariate and deterministic multivariate functions are
+provided.
 
 Example
 -------
@@ -39,14 +42,7 @@ Example
      13     1.6398020042326615E+00         0.0000000000000400
      14     1.6398020042326555E+00         0.0000000000000000
 """
-import sys
+from . import root_in, root_iter
 
-if sys.version_info < (3, 9):
-    from ._pyroot_old import *
-else:
-    from ._pyroot_new import *
-
-# Things for export.
 __all__ = ["root_in", "root_iter"]
-
-__version__ = "0.3.0"
+__version__ = "0.3.4"
