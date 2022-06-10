@@ -24,13 +24,13 @@ def cos(x):
         return Interval(*[
             (
                 -1
-                if lower <= (upper // (2 * math.pi)) * (2 * math.pi) <= upper
-                or lower <= (upper // (2 * math.pi)) * (2 * math.pi) - (2 * math.pi) <= upper
-                else cos_down(lower),
-                1
                 if lower <= (upper // (2 * math.pi)) * (2 * math.pi) + (math.pi / 2) <= upper
                 or lower <= (upper // (2 * math.pi)) * (2 * math.pi) - (math.pi / 2) <= upper
-                else cos_down(upper),
+                else min(cos_down(lower), cos_down(upper)),
+                1
+                if lower <= (upper // (2 * math.pi)) * (2 * math.pi) <= upper
+                or lower <= (upper // (2 * math.pi)) * (2 * math.pi) - (2 * math.pi) <= upper
+                else max(cos_up(lower), cos_up(upper)),
             )
             for lower, upper in zip(iterator, iterator)
         ])
@@ -219,13 +219,13 @@ def sin(x):
         return Interval(*[
             (
                 -1
-                if lower <= (upper // (2 * math.pi)) * (2 * math.pi) - (math.pi / 4) <= upper
-                or lower <= (upper // (2 * math.pi)) * (2 * math.pi) + (3 * math.pi / 4) <= upper
-                else sin_down(lower),
+                if lower <= (upper // (2 * math.pi)) * (2 * math.pi) - (math.pi / 2) <= upper
+                or lower <= (upper // (2 * math.pi)) * (2 * math.pi) + (3 * math.pi / 2) <= upper
+                else min(sin_down(lower), sin_down(upper)),
                 1
-                if lower <= (upper // (2 * math.pi)) * (2 * math.pi) + (math.pi / 4) <= upper
-                or lower <= (upper // (2 * math.pi)) * (2 * math.pi) - (3 * math.pi / 4) <= upper
-                else sin_down(upper),
+                if lower <= (upper // (2 * math.pi)) * (2 * math.pi) + (math.pi / 2) <= upper
+                or lower <= (upper // (2 * math.pi)) * (2 * math.pi) - (3 * math.pi / 2) <= upper
+                else max(sin_up(lower), sin_up(upper)),
             )
             for lower, upper in zip(iterator, iterator)
         ])
