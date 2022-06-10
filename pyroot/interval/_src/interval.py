@@ -3,6 +3,10 @@ from heapq import merge
 from math import ceil, floor, inf, isinf, isnan
 from typing import Any, Iterable, Iterator, Optional, SupportsFloat, SupportsIndex, TypeVar, Union, Tuple as tuple
 
+from . import fpu_rounding as fpur
+
+__all__ = ["Interval", "interval"]
+
 Self = TypeVar("Self", bound="interval")
 
 
@@ -51,7 +55,7 @@ class Interval:
     def __add__(self: Self, other: Union[Self, float], /) -> Self:
         if isinstance(other, Interval):
             return type(self)(*[
-                (x.minimum + y.minimum, x.maximum + y.maximum)
+                (fpur.add_down(x.minimum, y.minimum), fpur.add_up(x.maximum, y.maximum))
                 for x in self.sub_intervals
                 for y in other.sub_intervals
             ])
@@ -133,13 +137,13 @@ class Interval:
                     if y.maximum == 0:
                         continue
                     try:
-                        start = x.minimum * y.minimum
+                        start = fpur.mul_down(x.minimum, y.minimum)
                     except OverflowError:
                         continue
                     if isinf(start):
                         continue
                     try:
-                        stop = x.maximum * y.maximum
+                        stop = fpur.mul_up(x.maximum, y.maximum)
                     except OverflowError:
                         intervals.append((start, inf))
                     else:
@@ -148,13 +152,13 @@ class Interval:
                     if y.minimum == 0:
                         continue
                     try:
-                        stop = x.minimum * y.maximum
+                        stop = fpur.mul_up(x.minimum, y.maximum)
                     except OverflowError:
                         continue
                     if isinf(stop):
                         continue
                     try:
-                        start = x.maximum * y.minimum
+                        start = fpur.mul_down(x.maximum, y.minimum)
                     except OverflowError:
                         intervals.append((-inf, stop))
                     else:
@@ -166,13 +170,13 @@ class Interval:
                     if y.minimum == 0:
                         continue
                     try:
-                        start = x.maximum * y.maximum
+                        start = fpur.mul_down(x.maximum, y.maximum)
                     except OverflowError:
                         continue
                     if isinf(start):
                         continue
                     try:
-                        stop = x.minimum * y.minimum
+                        stop = fpur.mul_up(x.minimum, y.minimum)
                     except OverflowError:
                         intervals.append((start, inf))
                     else:
@@ -181,13 +185,13 @@ class Interval:
                     if y.maximum == 0:
                         continue
                     try:
-                        stop = x.maximum * y.minimum
+                        stop = fpur.mul_up(x.maximum, y.minimum)
                     except OverflowError:
                         continue
                     if isinf(stop):
                         continue
                     try:
-                        start = x.minimum * y.maximum
+                        start = fpur.mul_down(x.minimum, y.maximum)
                     except OverflowError:
                         intervals.append((-inf, stop))
                     else:
@@ -229,26 +233,26 @@ class Interval:
             for x in self[0:].sub_intervals:
                 for y in other[0:].sub_intervals:
                     try:
-                        start = x.minimum ** y.minimum
+                        start = fpur.pow_down(x.minimum, y.minimum)
                     except OverflowError:
                         continue
                     if isinf(start):
                         continue
                     try:
-                        stop = x.maximum ** y.maximum
+                        stop = fpur.pow_up(x.maximum, y.maximum)
                     except OverflowError:
                         intervals.append((start, inf))
                     else:
                         intervals.append((start, stop))
                 for y in other[:0].sub_intervals:
                     try:
-                        start = x.maximum ** y.maximum
+                        start = fpur.pow_down(x.maximum, y.maximum)
                     except OverflowError:
                         continue
                     if isinf(start):
                         continue
                     try:
-                        stop = x.minimum ** y.minimum
+                        stop = fpur.pow_up(x.minimum, y.minimum)
                     except (OverflowError, ZeroDivisionError):
                         intervals.append((start, inf))
                     else:
@@ -352,7 +356,7 @@ class Interval:
             intervals = []
             for x in self.sub_intervals:
                 for y in other.sub_intervals:
-                    intervals.append((x.minimum - y.maximum, x.maximum - y.minimum))
+                    intervals.append((fpur.sub_down(x.minimum, y.maximum), fpur.sub_up(x.maximum, y.minimum)))
             return type(self)(*intervals)
         elif isinstance(other, SupportsFloat):
             other = float(other)
@@ -372,13 +376,13 @@ class Interval:
                     if y.maximum == 0:
                         continue
                     try:
-                        start = x.minimum / y.maximum
+                        start = fpur.div_down(x.minimum, y.maximum)
                     except (OverflowError, ZeroDivisionError):
                         continue
                     if isinf(start):
                         continue
                     try:
-                        stop = x.maximum / y.minimum
+                        stop = fpur.div_up(x.maximum, y.minimum)
                     except (OverflowError, ZeroDivisionError):
                         intervals.append((start, inf))
                     else:
@@ -387,11 +391,11 @@ class Interval:
                     if y.minimum == 0:
                         continue
                     try:
-                        stop = x.minimum / y.minimum
+                        stop = fpur.div_up(x.minimum, y.minimum)
                     except (OverflowError, ZeroDivisionError):
                         continue
                     try:
-                        start = x.maximum / y.maximum
+                        start = fpur.div_down(x.maximum, y.maximum)
                     except (OverflowError, ZeroDivisionError):
                         intervals.append((-inf, stop))
                     else:
@@ -403,11 +407,11 @@ class Interval:
                     if y.minimum == 0:
                         continue
                     try:
-                        start = x.maximum / y.minimum
+                        start = fpur.div_down(x.maximum, y.minimum)
                     except (OverflowError, ZeroDivisionError):
                         continue
                     try:
-                        stop = x.minimum / y.maximum
+                        stop = fpur.div_up(x.minimum, y.maximum)
                     except (OverflowError, ZeroDivisionError):
                         intervals.append((start, inf))
                     else:
@@ -416,18 +420,32 @@ class Interval:
                     if y.maximum == 0:
                         continue
                     try:
-                        stop = x.maximum / y.maximum
+                        stop = fpur.div_up(x.maximum, y.maximum)
                     except (OverflowError, ZeroDivisionError):
                         continue
                     try:
-                        start = x.minimum / y.minimum
+                        start = fpur.div_down(x.minimum, y.minimum)
                     except (OverflowError, ZeroDivisionError):
                         intervals.append((-inf, stop))
                     else:
                         intervals.append((start, stop))
             return type(self)(*intervals)
         elif isinstance(other, SupportsFloat):
-            return self * (1 / float(other))
+            other = float(other)
+            if other > 0:
+                iterator = iter(self._endpoints)
+                return type(self)(*[
+                    (fpur.div_down(lower, other), fpur.div_up(upper, other))
+                    for lower, upper in zip(iterator, iterator)
+                ])
+            elif other < 0:
+                iterator = reversed(self._endpoints)
+                return type(self)(*[
+                    (fpur.div_down(upper, other), fpur.div_up(lower, other))
+                    for upper, lower in zip(iterator, iterator)
+                ])
+            else:
+                return interval[()]
         else:
             return NotImplemented
 
