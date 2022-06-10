@@ -53,9 +53,9 @@ def sub_up(x: float, y: float) -> float:
 def mul_precise(x: float, y: float) -> tuple[float, float]:
     x_mantissa, x_exponent = math.frexp(x)
     y_mantissa, y_exponent = math.frexp(y)
-    x_small = math.remainder(x_mantissa, math.sqrt(math.ulp(x_mantissa)))
+    x_small = math.remainder(x_mantissa, math.sqrt(math.ulp(math.nextafter(x_mantissa, 0.0))))
     x_large = x_mantissa - x_small
-    y_small = math.remainder(y_mantissa, math.sqrt(math.ulp(y_mantissa)))
+    y_small = math.remainder(y_mantissa, math.sqrt(math.ulp(math.nextafter(y_mantissa, 0.0))))
     y_large = y_mantissa - y_small
     partials = [math.ldexp(x_large * y_large, x_exponent + y_exponent)]
     for u in (
