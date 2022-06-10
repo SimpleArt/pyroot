@@ -63,7 +63,6 @@ def mul_precise(x: float, y: float) -> tuple[float, float]:
         math.ldexp(x_small * y_large, x_exponent + y_exponent),
         math.ldexp(x_small * y_small, x_exponent + y_exponent),
     ):
-        print(partials)
         partials_add(partials, u)
     return partials
 
