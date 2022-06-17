@@ -82,6 +82,45 @@ def cos_up(x: float) -> float:
         return result
 
 @overload
+def cosh(x: float) -> float: ...
+
+@overload
+def cosh(x: Interval) -> Interval: ...
+
+def cosh(x):
+    if isinstance(x, Interval):
+        iterator = iter(x._endpoints)
+        return Interval(*[
+            (
+                1.0
+                if lower <= 0.0 <= upper
+                else min(cosh_down(lower), cosh_down(upper)),
+                max(cosh_up(lower), cosh_up(upper)),
+            )
+            for lower, upper in zip(iterator, iterator)
+        ])
+    else:
+        return math.cosh(x)
+
+def cosh_down(x: float) -> float:
+    try:
+        result = math.cosh(x)
+    except OverflowError:
+        return math.inf
+    if (e ** Decimal(x) + e ** Decimal(-x)) / 2 < result:
+        return math.nextafter(result, 1.0)
+    return result
+
+def cosh_up(x: float) -> float:
+    try:
+        result = math.cosh(x)
+    except OverflowError:
+        return math.inf
+    if (e ** Decimal(x) + e ** Decimal(-x)) / 2 > result:
+        return math.nextafter(result, result + 1)
+    return result
+
+@overload
 def exp(x: float) -> float: ...
 
 @overload
@@ -115,7 +154,6 @@ def exp_up(x: float) -> float:
         return math.nextafter(result, 2 * result)
     else:
         return result
-
 
 @overload
 def log(x: float, base: float = ...) -> float: ...
@@ -281,6 +319,43 @@ def sin_up(x: float) -> float:
         return 1.0
     else:
         return result
+
+@overload
+def sinh(x: float) -> float: ...
+
+@overload
+def sinh(x: Interval) -> Interval: ...
+
+def sinh(x):
+    if isinstance(x, Interval):
+        iterator = iter(x._endpoints)
+        return Interval(*[
+            (
+                min(sinh_down(lower), sinh_down(upper)),
+                max(sinh_up(lower), sinh_up(upper)),
+            )
+            for lower, upper in zip(iterator, iterator)
+        ])
+    else:
+        return math.sinh(x)
+
+def sinh_down(x: float) -> float:
+    try:
+        result = math.sinh(x)
+    except OverflowError:
+        return math.inf if x > 0.0 else -math.inf
+    if (e ** Decimal(x) - e ** Decimal(-x)) / 2 < result:
+        return math.nextafter(result, result - 1.0)
+    return result
+
+def sinh_up(x: float) -> float:
+    try:
+        result = math.sinh(x)
+    except OverflowError:
+        return math.inf if x > 0.0 else -math.inf
+    if (e ** Decimal(x) - e ** Decimal(-x)) / 2 > result:
+        return math.nextafter(result, result + 1.0)
+    return result
 
 @overload
 def sqrt(x: float) -> float: ...
