@@ -50,7 +50,9 @@ def sub_down(x: float, y: float) -> float:
 def sub_up(x: float, y: float) -> float:
     return add_up(x, -y)
 
-def mul_precise(x: float, y: float) -> tuple[float, float]:
+def mul_precise(x: float, y: float) -> list[float]:
+    if math.isinf(x) or math.isinf(y) or math.isnan(x) or math.isnan(y):
+        return [x * y]
     x_mantissa, x_exponent = math.frexp(x)
     y_mantissa, y_exponent = math.frexp(y)
     x_small = math.remainder(x_mantissa, math.ulp(x_mantissa) / math.sqrt(math.ulp(1.0)))
@@ -81,8 +83,18 @@ def mul_up(x: float, y: float) -> float:
         return math.nextafter(partials[-1], math.inf)
 
 def div_down(x: float, y: float) -> float:
+    if y == 0.0:
+        if x > 0.0:
+            return math.inf
+        else:
+            return -math.inf
+    elif math.isinf(x) and math.isinf(y):
+        if x < 0.0 < y or y < 0.0 < x:
+            return -math.inf
+        else:
+            return 0.0
     quotient = x / y
-    if math.isinf(quotient) or math.isnan(quotient):
+    if math.isinf(quotient):
         return quotient
     elif quotient != 0.0:
         partials = mul_precise(quotient, y)
@@ -106,8 +118,18 @@ def div_down(x: float, y: float) -> float:
         return math.nextafter(0.0, -math.inf)
 
 def div_up(x: float, y: float) -> float:
+    if y == 0.0:
+        if x < 0.0:
+            return -math.inf
+        else:
+            return math.inf
+    elif math.isinf(x) and math.isinf(y):
+        if x < 0.0 < y or y < 0.0 < x:
+            return 0.0
+        else:
+            return math.inf
     quotient = x / y
-    if math.isinf(quotient) or math.isnan(quotient):
+    if math.isinf(quotient):
         return quotient
     elif quotient != 0.0:
         partials = mul_precise(quotient, y)
