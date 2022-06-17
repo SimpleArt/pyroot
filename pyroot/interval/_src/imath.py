@@ -408,6 +408,90 @@ def unadd(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
         result &= Interval(*intervals)
     return result
 
+def undiv(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = Interval((float(x),) * 2)
+    if not isinstance(y, Interval):
+        y = Interval((float(y),) * 2)
+    result = interval
+    intervals = []
+    for temp in y.sub_intervals:
+        if temp == 0.0:
+            continue
+        if temp != temp[:0]:
+            for yi in temp[0:].sub_intervals:
+                for xi in x[0:].sub_intervals:
+                    if xi.minimum == 0.0:
+                        start = 0.0
+                    elif yi.maximum == 0.0:
+                        raise ValueError(f"impossible to undiv {x!r} and {y!r}")
+                    else:
+                        start = mul_down(xi.minimum, yi.maximum)
+                    if xi.maximum == 0.0:
+                        stop = 0.0
+                    elif yi.minimum == 0.0:
+                        stop = math.inf
+                    else:
+                        stop = mul_up(xi.maximum, yi.minimum)
+                    if start > stop:
+                        raise ValueError(f"impossible to undiv {x!r} and {y!r}")
+                    intervals.append((start, stop))
+                for xi in x[:0].sub_intervals:
+                    if xi.maximum == 0.0:
+                        stop = 0.0
+                    elif yi.maximum == 0.0:
+                        raise ValueError(f"impossible to undiv {x!r} and {y!r}")
+                    else:
+                        stop = mul_up(xi.maximum, yi.maximum)
+                    if xi.minimum == 0.0:
+                        start = 0.0
+                    elif yi.minimum == 0.0:
+                        start = -math.inf
+                    else:
+                        start = mul_down(xi.minimum, yi.minimum)
+                    if start > stop:
+                        raise ValueError(f"impossible to undiv {x!r} and {y!r}")
+                    intervals.append((start, stop))
+            result &= Interval(*intervals)
+            intervals.clear()
+        if temp != temp[0:]:
+            for yi in temp[:0].sub_intervals:
+                for xi in x[0:].sub_intervals:
+                    if xi.minimum == 0.0:
+                        stop = 0.0
+                    elif yi.minimum == 0.0:
+                        raise ValueError(f"impossible to undiv {x!r} and {y!r}")
+                    else:
+                        stop = mul_up(xi.minimum, yi.minimum)
+                    if xi.maximum == 0.0:
+                        start = 0.0
+                    elif yi.maximum == 0.0:
+                        start = -math.inf
+                    else:
+                        start = mul_down(xi.maximum, yi.maximum)
+                    if start > stop:
+                        raise ValueError(f"impossible to undiv {x!r} and {y!r}")
+                    intervals.append((start, stop))
+                for xi in x[:0].sub_intervals:
+                    if xi.maximum == 0.0:
+                        start = 0.0
+                    elif yi.minimum == 0.0:
+                        start = -math.inf
+                    else:
+                        start = mul_down(xi.maximum, yi.minimum)
+                    if xi.minimum == 0.0:
+                        stop = 0.0
+                    elif yi.maximum == 0.0:
+                        raise ValueError(f"impossible to undiv {x!r} and {y!r}")
+                    else:
+                        stop = mul_up(xi.minimum, yi.maximum)
+                    if start > stop:
+                        raise ValueError(f"impossible to undiv {x!r} and {y!r}")
+                    intervals.append((start, stop))
+            result &= Interval(*intervals)
+            intervals.clear()
+    return result
+
 def unmul(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
         x = Interval((float(x),) * 2)
@@ -490,7 +574,99 @@ def unmul(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
             intervals.clear()
     return result
 
-def unsub(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
+def unrdiv(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = Interval((float(x),) * 2)
+    if not isinstance(y, Interval):
+        y = Interval((float(y),) * 2)
+    result = interval
+    intervals = []
+    for temp in y.sub_intervals:
+        if temp == 0.0:
+            continue
+        if temp != temp[:0]:
+            for yi in temp[0:].sub_intervals:
+                for xi in x[0:].sub_intervals:
+                    if xi.maximum == 0.0:
+                        continue
+                    if yi.maximum == 0.0:
+                        start = 0.0
+                    elif xi.maximum == 0.0:
+                        raise ValueError(f"impossible to unrdiv {x!r} and {y!r}")
+                    else:
+                        start = div_down(yi.maximum, xi.maximum)
+                    if yi.minimum == 0.0:
+                        stop = 0.0
+                    elif xi.minimum == 0.0:
+                        stop = math.inf
+                    else:
+                        stop = div_up(yi.minimum, xi.minimum)
+                    if start > stop:
+                        raise ValueError(f"impossible to unrdiv {x!r} and {y!r}")
+                    intervals.append((start, stop))
+                for xi in x[:0].sub_intervals:
+                    if xi.minimum == 0.0:
+                        continue
+                    if yi.minimum == 0.0:
+                        stop = 0.0
+                    elif xi.maximum == 0.0:
+                        raise ValueError(f"impossible to unrdiv {x!r} and {y!r}")
+                    else:
+                        stop = div_up(yi.minimum, xi.maximum)
+                    if yi.maximum == 0.0:
+                        start = 0.0
+                    elif xi.minimum == 0.0:
+                        start = -math.inf
+                    else:
+                        start = div_down(yi.maximum, xi.minimum)
+                    if start > stop:
+                        raise ValueError(f"impossible to unrdiv {x!r} and {y!r}")
+                    intervals.append((start, stop))
+            result &= Interval(*intervals)
+            intervals.clear()
+        if temp != temp[0:]:
+            for yi in temp[:0].sub_intervals:
+                for xi in x[0:].sub_intervals:
+                    if xi.maximum == 0.0:
+                        continue
+                    if yi.minimum == 0.0:
+                        stop = 0.0
+                    elif xi.maximum == 0.0:
+                        raise ValueError(f"impossible to unrdiv {x!r} and {y!r}")
+                    else:
+                        stop = div_up(yi.minimum, xi.maximum)
+                    if yi.minimum == 0.0:
+                        start = 0.0
+                    elif xi.maximum == 0.0:
+                        start = -math.inf
+                    else:
+                        start = div_down(yi.maximum, xi.minimum)
+                    if start > stop:
+                        raise ValueError(f"impossible to unrdiv {x!r} and {y!r}")
+                    intervals.append((start, stop))
+                for xi in x[:0].sub_intervals:
+                    if xi.minimum == 0.0:
+                        continue
+                    if yi.minimum == 0.0:
+                        start = 0.0
+                    elif xi.minimum == 0.0:
+                        start = -math.inf
+                    else:
+                        start = div_down(yi.minimum, xi.minimum)
+                    if yi.maximum == 0.0:
+                        stop = 0.0
+                    elif xi.maximum == 0.0:
+                        raise ValueError(f"impossible to unrdiv {x!r} and {y!r}")
+                    else:
+                        stop = div_up(yi.maximum, xi.maximum)
+                    if start > stop:
+                        raise ValueError(f"impossible to unrdiv {x!r} and {y!r}")
+                    intervals.append((start, stop))
+            result &= Interval(*intervals)
+            intervals.clear()
+    return result
+
+def unrsub(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
         x = Interval((float(x),) * 2)
     if not isinstance(y, Interval):
@@ -507,3 +683,19 @@ def unsub(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
         result &= Interval(*intervals)
     return result
 
+def unsub(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = Interval((float(x),) * 2)
+    if not isinstance(y, Interval):
+        y = Interval((float(y),) * 2)
+    result = interval
+    for yi in y.sub_intervals:
+        intervals = []
+        for xi in x.sub_intervals:
+            start = add_down(xi.minimum, yi.maximum)
+            stop = add_up(xi.maximum, yi.minimum)
+            if start > stop:
+                raise ValueError(f"impossible to unsub {x!r} and {y!r}")
+            intervals.append((start, stop))
+        result &= Interval(*intervals)
+    return result
