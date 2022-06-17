@@ -391,3 +391,115 @@ def sqrt_up(x: float) -> float:
     else:
         return math.nextafter(y, 2 * y)
 
+def unadd(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = Interval((float(x),) * 2)
+    if not isinstance(y, Interval):
+        y = Interval((float(y),) * 2)
+    result = interval
+    for yi in y.sub_intervals:
+        intervals = []
+        for xi in x.sub_intervals:
+            start = sub_down(xi.minimum, yi.minimum)
+            stop = sub_up(xi.maximum, yi.maximum)
+            if start > stop:
+                return Interval()
+            intervals.append((start, stop))
+        result &= Interval(*intervals)
+    return result
+
+def unmul(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = Interval((float(x),) * 2)
+    if not isinstance(y, Interval):
+        y = Interval((float(y),) * 2)
+    result = interval
+    intervals = []
+    for temp in y.sub_intervals:
+        if Interval() != temp[0:] != interval[0:0]:
+            for yi in temp[0:].sub_intervals:
+                for xi in x[0:].sub_intervals:
+                    if xi.minimum == 0.0:
+                        start = 0.0
+                    elif yi.minimum == 0.0:
+                        return Interval()
+                    else:
+                        start = div_down(xi.minimum, yi.minimum)
+                    if xi.maximum == 0.0:
+                        stop = 0.0
+                    elif yi.maximum == 0.0:
+                        return Interval()
+                    else:
+                        stop = div_up(xi.maximum, yi.maximum)
+                    if start > stop:
+                        return Interval()
+                    intervals.append((start, stop))
+                for xi in x[:0].sub_intervals:
+                    if xi.maximum == 0.0:
+                        stop = 0.0
+                    elif yi.minimum == 0.0:
+                        return Interval()
+                    else:
+                        stop = div_up(xi.maximum, yi.minimum)
+                    if xi.minimum == 0.0:
+                        start = 0.0
+                    elif yi.maximum == 0.0:
+                        return Interval()
+                    else:
+                        start = div_down(xi.minimum, yi.maximum)
+                    if start > stop:
+                        return Interval()
+                    intervals.append((start, stop))
+            result &= Interval(*intervals)
+            intervals.clear()
+        if Interval() != temp[:0] != interval[0:0]:
+            for yi in temp[:0].sub_intervals:
+                for xi in x[0:].sub_intervals:
+                    if xi.minimum == 0.0:
+                        stop = 0.0
+                    elif yi.maximum == 0.0:
+                        return Interval()
+                    else:
+                        stop = div_up(xi.minimum, yi.maximum)
+                    if xi.maximum == 0.0:
+                        start = 0.0
+                    elif yi.minimum == 0.0:
+                        return Interval()
+                    else:
+                        start = div_down(xi.maximum, yi.minimum)
+                    if start > stop:
+                        return Interval()
+                    intervals.append((start, stop))
+                for xi in x[:0].sub_intervals:
+                    if xi.maximum == 0.0:
+                        start = 0.0
+                    elif yi.maximum == 0.0:
+                        return Interval()
+                    else:
+                        start = div_down(xi.maximum, yi.maximum)
+                    if xi.minimum == 0.0:
+                        stop = 0.0
+                    elif yi.minimum == 0.0:
+                        return Interval()
+                    else:
+                        stop = div_up(xi.minimum, yi.minimum)
+                    if start > stop:
+                        return Interval()
+                    intervals.append((start, stop))
+            result &= Interval(*intervals)
+            intervals.clear()
+    return result
+
+def unsub(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = Interval((float(x),) * 2)
+    if not isinstance(y, Interval):
+        y = Interval((float(y),) * 2)
+    result = interval
+    for yi in y.sub_intervals:
+        result &= Interval(*[
+            (add_down(xi.minimum, yi.minimum), add_up(xi.maximum, yi.maximum))
+            for xi in x.sub_intervals
+        ])
+    return result
+
