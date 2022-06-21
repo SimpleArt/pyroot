@@ -84,10 +84,7 @@ def mul_up(x: float, y: float) -> float:
 
 def div_down(x: float, y: float) -> float:
     if y == 0.0:
-        if x > 0.0:
-            return math.inf
-        else:
-            return -math.inf
+        return -math.inf
     elif math.isinf(x) and math.isinf(y):
         if x < 0.0 < y or y < 0.0 < x:
             return -math.inf
@@ -119,10 +116,7 @@ def div_down(x: float, y: float) -> float:
 
 def div_up(x: float, y: float) -> float:
     if y == 0.0:
-        if x < 0.0:
-            return -math.inf
-        else:
-            return math.inf
+        return math.inf
     elif math.isinf(x) and math.isinf(y):
         if x < 0.0 < y or y < 0.0 < x:
             return 0.0
