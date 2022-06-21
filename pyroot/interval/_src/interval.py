@@ -1,3 +1,4 @@
+from __future__ import annotations
 import operator
 from heapq import merge
 from math import ceil, floor, inf, isinf, isnan
@@ -54,8 +55,8 @@ class Interval:
     def __abs__(self: Self, /) -> Self:
         return -self[:0] | self[0:]
 
-    def __add__(self: Self, other: Union[Self, float], /) -> Self:
-        if isinstance(other, Interval):
+    def __add__(self: Self, other: Union[Interval, float], /) -> Interval:
+        if isinstance(other, Interval) and type(self).__add__ is type(other).__add__:
             return type(self)(*[
                 (fpur.add_down(x.minimum, y.minimum), fpur.add_up(x.maximum, y.maximum))
                 for x in self.sub_intervals
@@ -67,8 +68,8 @@ class Interval:
         else:
             return NotImplemented
 
-    def __and__(self: Self, other: Union[Self, float], /) -> Self:
-        if isinstance(other, Interval):
+    def __and__(self: Self, other: Union[Interval, float], /) -> Interval:
+        if isinstance(other, Interval) and type(self).__and__ is type(other).__and__:
             return type(self)(*[
                 (max(x.minimum, y.minimum), min(x.maximum, y.maximum))
                 for x in self.sub_intervals
@@ -83,6 +84,9 @@ class Interval:
         else:
             return NotImplemented
 
+    def __as_interval__(self: Self) -> Interval:
+        return self
+
     def __contains__(self: Self, other: Any, /) -> bool:
         if not isinstance(other, SupportsFloat):
             return False
@@ -90,14 +94,14 @@ class Interval:
         return any(x.minimum <= other <= x.maximum for x in self.sub_intervals)
 
     def __eq__(self: Self, other: Any, /) -> bool:
-        if isinstance(other, Interval):
+        if isinstance(other, Interval) and type(self).__eq__ is type(other).__eq__:
             return self._endpoints == other._endpoints
         elif isinstance(other, SupportsFloat):
             return self._endpoints == (float(other),) * 2
         else:
             return NotImplemented
 
-    def __getitem__(self: Self, args: Union[slice, tuple[slice, ...]], /) -> Self:
+    def __getitem__(self: Self, args: Union[slice, tuple[slice, ...]], /) -> Interval:
         if isinstance(args, slice):
             args = (args,)
         elif not isinstance(args, tuple):
@@ -127,8 +131,8 @@ class Interval:
         iterator = iter([-inf, *self._endpoints, inf])
         return type(self)(*zip(iterator, iterator))
 
-    def __mul__(self: Self, other: Union[Self, float], /) -> Self:
-        if isinstance(other, Interval):
+    def __mul__(self: Self, other: Union[Interval, float], /) -> Interval:
+        if isinstance(other, Interval) and type(self).__mul__ is type(other).__mul__:
             intervals = []
             if 0 in self and len(other._endpoints) > 0 or 0 in other and len(self._endpoints) > 0:
                 intervals.append((0, 0))
@@ -209,8 +213,8 @@ class Interval:
         iterator = reversed(self._endpoints)
         return type(self)(*[(-upper, -lower) for upper, lower in zip(iterator, iterator)])
 
-    def __or__(self: Self, other: Union[Self, float], /) -> Self:
-        if isinstance(other, Interval):
+    def __or__(self: Self, other: Union[Interval, float], /) -> Interval:
+        if isinstance(other, Interval) and type(self).__or__ is type(other).__or__:
             return type(self)(
                 *[(x.minimum, x.maximum) for x in self.sub_intervals],
                 *[(x.minimum, x.maximum) for x in other.sub_intervals],
@@ -227,10 +231,10 @@ class Interval:
     def __pos__(self: Self, /) -> Self:
         return self
 
-    def __pow__(self: Self, other: Union[Self, float], modulo: None = None, /) -> Self:
+    def __pow__(self: Self, other: Union[Interval, float], modulo: None = None, /) -> Interval:
         if modulo is not None:
             return NotImplemented
-        elif isinstance(other, Interval):
+        elif isinstance(other, Interval) and type(self).__pow__ is type(other).__pow__:
             intervals = []
             for x in self[0:].sub_intervals:
                 for y in other[0:].sub_intervals:
@@ -307,13 +311,13 @@ class Interval:
         else:
             return NotImplemented
 
-    def __radd__(self: Self, other: float, /) -> Self:
+    def __radd__(self: Self, other: float, /) -> Interval:
         if isinstance(other, SupportsFloat):
             return self + other
         else:
             return NotImplemented
 
-    def __rand__(self: Self, other: float, /) -> Self:
+    def __rand__(self: Self, other: float, /) -> Interval:
         if isinstance(other, SupportsFloat):
             return self & other
         else:
@@ -333,46 +337,46 @@ class Interval:
             ])
             return f"interval[{bounds}]"
 
-    def __rmul__(self: Self, other: float, /) -> Self:
+    def __rmul__(self: Self, other: float, /) -> Interval:
         if isinstance(other, SupportsFloat):
             return self * other
         else:
             return NotImplemented
 
-    def __ror__(self: Self, other: float, /) -> Self:
+    def __ror__(self: Self, other: float, /) -> Interval:
         if isinstance(other, SupportsFloat):
             return self | other
         else:
             return NotImplemented
 
-    def __rpow__(self: Self, other: float, modulo: None = None, /) -> Self:
-        if modulo is not None and isinstance(other, SupportsFloat):
+    def __rpow__(self: Self, other: float, modulo: None = None, /) -> Interval:
+        if modulo is None and isinstance(other, SupportsFloat):
             other = float(other)
             return interval[other:other] ** self
         else:
             return NotImplemented
 
-    def __rsub__(self: Self, other: float, /) -> Self:
+    def __rsub__(self: Self, other: float, /) -> Interval:
         if isinstance(other, SupportsFloat):
             return self * -1 + other
         else:
             return NotImplemented
 
-    def __rtruediv__(self: Self, other: float, /) -> Self:
+    def __rtruediv__(self: Self, other: float, /) -> Interval:
         if isinstance(other, SupportsFloat):
             other = float(other)
             return interval[other:other] / self
         else:
             return NotImplemented
 
-    def __rxor__(self: Self, other: float, /) -> Self:
+    def __rxor__(self: Self, other: float, /) -> Interval:
         if isinstance(other, SupportsFloat):
             return self | other
         else:
             return NotImplemented
 
-    def __sub__(self: Self, other: Union[Self, float], /) -> Self:
-        if isinstance(other, Interval):
+    def __sub__(self: Self, other: Union[Interval, float], /) -> Interval:
+        if isinstance(other, Interval) and type(self).__sub__ is type(other).__sub__:
             intervals = []
             for x in self.sub_intervals:
                 for y in other.sub_intervals:
@@ -384,8 +388,8 @@ class Interval:
         else:
             return NotImplemented
 
-    def __truediv__(self: Self, other: Union[Self, float], /) -> Self:
-        if isinstance(other, Interval):
+    def __truediv__(self: Self, other: Union[Interval, float], /) -> Interval:
+        if isinstance(other, Interval) and type(self).__truediv__ is type(other).__truediv__:
             intervals = []
             if len(self._endpoints) != 0 != len(other._endpoints) and (0 in self and other != 0 or isinf(other.minimum) or isinf(other.maximum)):
                 intervals.append((0, 0))
@@ -469,8 +473,8 @@ class Interval:
         else:
             return NotImplemented
 
-    def __xor__(self: Self, other: Union[Self, float], /) -> Self:
-        if isinstance(other, Interval):
+    def __xor__(self: Self, other: Union[Interval, float], /) -> Interval:
+        if isinstance(other, Interval) and type(self).__xor__ is type(other).__xor__:
             iterator = merge(self._endpoints, other._endpoints)
             return type(self)(*zip(iterator, iterator))
         elif isinstance(other, SupportsFloat):
