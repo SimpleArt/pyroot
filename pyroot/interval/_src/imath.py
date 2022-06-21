@@ -130,6 +130,12 @@ class PiMultiple(Interval):
         else:
             return NotImplemented
 
+    def __repr__(self: Self) -> str:
+        if self == pi:
+            return "pi"
+        else:
+            return super().__repr__() + " * pi"
+
     def __rmul__(self: Self, other: Union[Interval, float]) -> Interval:
         if isinstance(other, Interval) and Interval.__rmul__ is type(other).__rmul__:
             iterator = iter((other * self.coefficients)._endpoints)
