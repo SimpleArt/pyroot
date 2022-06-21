@@ -1,10 +1,251 @@
 import decimal
 import math
+import operator
 from decimal import Decimal, localcontext
-from typing import Optional, Union
+from typing import Any, Optional, SupportsFloat, SupportsIndex, TypeVar, Union
 
 from .fpu_rounding import *
 from .interval import Interval, interval
+
+e = interval[math.e:math.nextafter(math.e, math.inf)]
+_PI = interval[math.pi:math.nextafter(math.pi, math.inf)]
+_BIG_PI = Decimal(
+    "3.141592653589793238462643383279502884197169399375105820974944592"
+    "30781640628620899862803482534211706798214808651328230664709384460"
+    "95505822317253594081284811174502841027019385211055596446229489549"
+    "30381964428810975665933446128475648233786783165271201909145648566"
+    "923460348610454326648213393607260249141273724587006606"
+)
+
+Self = TypeVar("Self", bound="PiMultiple")
+
+
+class PiMultiple(Interval):
+
+    __slots__ = ()
+
+    def __abs__(self: Self) -> Self:
+        iterator = iter(abs(self.coefficients)._endpoints)
+        return type(self)(*zip(iterator, iterator))
+
+    def __add__(self: Self, other: Union[Interval, float]) -> Interval:
+        if isinstance(other, PiMultiple) and type(self).__add__ is type(other).__add__:
+            iterator = iter((self.coefficients + other.coefficients)._endpoints)
+            return type(self)(*zip(iterator, iterator))
+        elif isinstance(other, Interval) and Interval.__add__ is type(other).__add__:
+            return self.__as_interval__() + other
+        elif isinstance(other, SupportsFloat):
+            return self.__as_interval__() + float(other)
+        else:
+            return NotImplemented
+
+    def __and__(self: Self, other: Union[Interval, float]) -> Interval:
+        if isinstance(other, PiMultiple) and type(self).__and__ is type(other).__and__:
+            iterator = iter((self.coefficients & other.coefficients)._endpoints)
+            return type(self)(*zip(iterator, iterator))
+        elif isinstance(other, Interval) and Interval.__and__ is type(other).__and__:
+            return self.__as_interval__() & other
+        elif isinstance(other, SupportsFloat):
+            return self.__as_interval__() & float(other)
+        else:
+            return NotImplemented
+
+    def __eq__(self: Self, other: Any) -> bool:
+        if isinstance(other, PiMultiple) and type(self).__eq__ is type(other).__eq__:
+            return self._endpoints == other._endpoints
+        elif isinstance(other, Interval) and Interval.__eq__ is type(other).__eq__:
+            return all(
+                e1 * _PI.minimum == e1 * _PI.maximum == e2
+                for e1, e2 in zip(self._endpoints, other._endpoints)
+            )
+        elif isinstance(other, SupportsFloat):
+            other = float(other)
+            return self == Interval((other, other))
+        else:
+            return NotImplemented
+
+    def __getitem__(self: Self, args: Union[slice, tuple[slice, ...]]) -> Interval:
+        return self.__as_interval__()[args]
+
+    def __mul__(self: Self, other: Union[Interval, float]) -> Interval:
+        if isinstance(other, PiMultiple) and type(self).__mul__ is type(other).__mul__:
+            return self.__as_interval__() * (other.coefficients * _PI)
+        elif isinstance(other, Interval) and Interval.__mul__ is type(other).__mul__:
+            iterator = iter((self.coefficients * other)._endpoints)
+            return type(self)(*zip(iterator, iterator))
+        elif isinstance(other, SupportsFloat):
+            iterator = iter((self.coefficients * float(other))._endpoints)
+            return type(self)(*zip(iterator, iterator))
+        else:
+            return NotImplemented
+
+    def __or__(self: Self, other: Union[Interval, float]) -> Interval:
+        if isinstance(other, PiMultiple) and type(self).__or__ is type(other).__or__:
+            iterator = iter((self.coefficients | other.coefficients)._endpoints)
+            return type(self)(*zip(iterator, iterator))
+        elif isinstance(other, Interval) and Interval.__or__ is type(other).__or__:
+            iterator = iter((self.__as_interval__() | other)._endpoints)
+            return Interval(*zip(iterator, iterator))
+        elif isinstance(other, SupportsFloat):
+            iterator = iter((self.__as_interval__() | float(other))._endpoints)
+            return Interval(*zip(iterator, iterator))
+        else:
+            return NotImplemented
+
+    def __pow__(self: Self, other: Union[Interval, float], modulo: None = None) -> Interval:
+        if modulo is not None:
+            return NotImplemented
+        elif isinstance(other, PiMultiple) and type(self).__pow__ is type(other).__pow__:
+            iterator = iter((self.__as_interval__() ** (other.coefficients * _PI))._endpoints)
+            return type(self)(*zip(iterator, iterator))
+        elif isinstance(other, Interval) and Interval.__pow__ is type(other).__pow__:
+            iterator = iter((self.__as_interval__() ** other)._endpoints)
+            return Interval(*zip(iterator, iterator))
+        elif isinstance(other, SupportsIndex):
+            iterator = iter((self.__as_interval__() ** operator.index(other))._endpoints)
+            return Interval(*zip(iterator, iterator))
+        elif isinstance(other, SupportsFloat):
+            iterator = iter((self.__as_interval__() ** float(other))._endpoints)
+            return Interval(*zip(iterator, iterator))
+        else:
+            return NotImplemented
+
+    def __radd__(self: Self, other: Union[Interval, float]) -> Interval:
+        if isinstance(other, Interval) and Interval.__radd__ is type(other).__radd__:
+            iterator = iter((other + self.__as_interval__())._endpoints)
+            return Interval(*zip(iterator, iterator))
+        elif isinstance(other, SupportsFloat):
+            iterator = iter((float(other) + self.__as_interval__())._endpoints)
+            return Interval(*zip(iterator, iterator))
+        else:
+            return NotImplemented
+
+    def __rand__(self: Self, other: Union[Interval, float]) -> Interval:
+        if isinstance(other, Interval) and Interval.__rand__ is type(other).__rand__:
+            iterator = iter((other & self.__as_interval__())._endpoints)
+            return Interval(*zip(iterator, iterator))
+        elif isinstance(other, SupportsFloat):
+            iterator = iter((float(other) & self.__as_interval__())._endpoints)
+            return Interval(*zip(iterator, iterator))
+        else:
+            return NotImplemented
+
+    def __rmul__(self: Self, other: Union[Interval, float]) -> Interval:
+        if isinstance(other, Interval) and Interval.__rmul__ is type(other).__rmul__:
+            iterator = iter((other * self.coefficients)._endpoints)
+            return type(self)(*zip(iterator, iterator))
+        elif isinstance(other, SupportsFloat):
+            iterator = iter((float(other) * self.coefficients)._endpoints)
+            return type(self)(*zip(iterator, iterator))
+        else:
+            return NotImplemented
+
+    def __rpow__(self: Self, other: Union[Interval, float], modulo: None = None) -> Interval:
+        if modulo is not None:
+            return NotImplemented
+            return type(self)(*zip(iterator, iterator))
+        elif isinstance(other, Interval) and Interval.__rpow__ is type(other).__rpow__:
+            iterator = iter((other ** self.__as_interval__())._endpoints)
+            return Interval(*zip(iterator, iterator))
+        elif isinstance(other, SupportsIndex):
+            iterator = iter((operator.index(other) ** self.__as_interval__())._endpoints)
+            return Interval(*zip(iterator, iterator))
+        elif isinstance(other, SupportsFloat):
+            iterator = iter((float(other) ** self.__as_interval__())._endpoints)
+            return Interval(*zip(iterator, iterator))
+        else:
+            return NotImplemented
+
+    def __rsub__(self: Self, other: Union[Interval, float]) -> Interval:
+        if isinstance(other, Interval) and Interval.__rsub__ is type(other).__rsub__:
+            iterator = iter((other - self.__as_interval__())._endpoints)
+            return Interval(*zip(iterator, iterator))
+        elif isinstance(other, SupportsFloat):
+            iterator = iter((float(other) - self.__as_interval__())._endpoints)
+            return Interval(*zip(iterator, iterator))
+        else:
+            return NotImplemented
+
+    def __rtruediv__(self: Self, other: Union[Interval, float]) -> Interval:
+        if isinstance(other, Interval) and Interval.__rtruediv__ is type(other).__rtruediv__:
+            iterator = iter((other / self.__as_interval__())._endpoints)
+            return Interval(*zip(iterator, iterator))
+        elif isinstance(other, SupportsFloat):
+            iterator = iter((float(other) / self.__as_interval__())._endpoints)
+            return Interval(*zip(iterator, iterator))
+        else:
+            return NotImplemented
+
+    def __rxor__(self: Self, other: Union[Interval, float]) -> Interval:
+        if isinstance(other, Interval) and Interval.__rxor__ is type(other).__rxor__:
+            iterator = iter((other ^ self.__as_interval__())._endpoints)
+            return Interval(*zip(iterator, iterator))
+        elif isinstance(other, SupportsFloat):
+            iterator = iter((float(other) ^ self.__as_interval__())._endpoints)
+            return Interval(*zip(iterator, iterator))
+        else:
+            return NotImplemented
+
+    def __sub__(self: Self, other: Union[Interval, float]) -> Interval:
+        if isinstance(other, PiMultiple) and type(self).__sub__ is type(other).__sub__:
+            iterator = iter((self.coefficients - other.coefficients)._endpoints)
+            return type(self)(*zip(iterator, iterator))
+        elif isinstance(other, Interval) and Interval.__sub__ is type(other).__sub__:
+            return self.__as_interval__() - other
+        elif isinstance(other, SupportsFloat):
+            return self.__as_interval__() - float(other)
+        else:
+            return NotImplemented
+
+    def __truediv__(self: Self, other: Union[Interval, float]) -> Interval:
+        if isinstance(other, PiMultiple) and type(self).__truediv__ is type(other).__truediv__:
+            return self.coefficients / other.coefficients
+        elif isinstance(other, Interval) and Interval.__truediv__ is type(other).__truediv__:
+            iterator = iter((self.coefficients / other)._endpoints)
+            return type(self)(*zip(iterator, iterator))
+        elif isinstance(other, SupportsFloat):
+            iterator = iter((self.coefficients / float(other))._endpoints)
+            return type(self)(*zip(iterator, iterator))
+        else:
+            return NotImplemented
+
+    def __xor__(self: Self, other: Union[Interval, float]) -> Interval:
+        if isinstance(other, PiMultiple) and type(self).__xor__ is type(other).__xor__:
+            iterator = iter((self.coefficients ^ other.coefficients)._endpoints)
+            return type(self)(*zip(iterator, iterator))
+        elif isinstance(other, Interval) and Interval.__xor__ is type(other).__xor__:
+            return self.__as_interval__() ^ other
+        elif isinstance(other, SupportsFloat):
+            return self.__as_interval__() ^ float(other)
+        else:
+            return NotImplemented
+
+    def __as_interval__(self: Self) -> Interval:
+        return self.coefficients * _PI
+
+    @property
+    def coefficients(self: Self) -> Interval:
+        iterator = iter(self._endpoints)
+        return Interval(*zip(iterator, iterator))
+
+    @property
+    def maximum(self: Self) -> float:
+        m = super().maximum
+        if m > 0:
+            return m * _PI.maximum
+        else:
+            return m * _PI.minimum
+
+    @property
+    def minimum(self: Self) -> float:
+        m = super().minimum
+        if m < 0:
+            return m * _PI.maximum
+        else:
+            return m * _PI.minimum
+
+
+pi = PiMultiple((1.0, 1.0))
 
 def decimal_down(x: Decimal) -> float:
     y = float(x)
@@ -21,51 +262,52 @@ def decimal_up(x: Decimal) -> float:
         return y
 
 def cos_precise(x: Decimal) -> Decimal:
-    i = last_s = 0
-    s = fact = num = sign = 1
-    x *= x
-    while s != last_s:
-        last_s = s
-        i += 2
-        fact *= i * (i - 1)
-        num *= x
-        sign *= -1
-        s += sign * num / fact
-    return s
+    with localcontext() as ctx:
+        ctx.prec += 2
+        i = last_s = 0
+        s = fact = num = sign = 1
+        x *= x
+        while s != last_s:
+            last_s = s
+            i += 2
+            fact *= i * (i - 1)
+            num *= x
+            sign *= -1
+            s += sign * num / fact
+        return s
 
 def sin_precise(x: Decimal) -> Decimal:
-    s = num = x
-    last_s = 0
-    i = fact = sign = 1
-    x *= x
-    while s != last_s:
-        last_s = s
-        i += 2
-        fact *= i * (i - 1)
-        num *= x
-        sign *= -1
-        s += sign * num / fact
-    return s
+    with localcontext() as ctx:
+        ctx.prec += 2
+        s = num = x
+        last_s = 0
+        i = fact = sign = 1
+        x *= x
+        while s != last_s:
+            last_s = s
+            i += 2
+            fact *= i * (i - 1)
+            num *= x
+            sign *= -1
+            s += sign * num / fact
+        return s
 
 def cos_sin_precise(x: float) -> tuple[Decimal, Decimal]:
-    mantissa, exponent = math.frexp(x)
-    if not exponent > 0:
-        mantissa = math.ldexp(mantissa, exponent)
-        exponent = 0
     with localcontext() as ctx:
-        ctx.prec += int(exponent * math.log10(2)) + 10
-        d = Decimal(mantissa)
+        ctx.prec += int(2 * math.log10(1 + abs(x))) + 10
+        d = Decimal(abs(x)) % (2 * _BIG_PI)
         c = cos_precise(d)
         s = sin_precise(d)
-        for _ in range(exponent):
-            c, s = (c + s) * (c - s), 2 * c * s
-        return c, s
+        if x < 0:
+            return (c, -s)
+        else:
+            return (c, s)
 
 def acos(x: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
         x = float(x)
         x = Interval((x, x))
-    iterator = reversed(x[-1.0:1.0]._endpoints)
+    iterator = reversed(x.__as_interval__()[-1.0:1.0]._endpoints)
     return Interval(*[
         (acos_down(upper), acos_up(lower))
         for upper, lower in zip(iterator, iterator)
@@ -89,7 +331,7 @@ def acosh(x: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
         x = float(x)
         x = Interval((x, x))
-    iterator = iter(x[1.0:]._endpoints)
+    iterator = iter(x.__as_interval__()[1.0:]._endpoints)
     return Interval(*[
         (acosh_down(lower), acosh_up(upper))
         for lower, upper in zip(iterator, iterator)
@@ -115,7 +357,7 @@ def asin(x: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
         x = float(x)
         x = Interval((x, x))
-    iterator = iter(x[-1.0:1.0]._endpoints)
+    iterator = iter(x.__as_interval__()[-1.0:1.0]._endpoints)
     return Interval(*[
         (asin_down(lower), asin_up(upper))
         for lower, upper in zip(iterator, iterator)
@@ -140,7 +382,7 @@ def asinh(x: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
         x = float(x)
         x = Interval((x, x))
-    iterator = iter(x._endpoints)
+    iterator = iter(x.__as_interval__()._endpoints)
     return Interval(*[
         (asinh_down(lower), asinh_up(upper))
         for lower, upper in zip(iterator, iterator)
@@ -166,7 +408,7 @@ def atan(x: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
         x = float(x)
         x = Interval((x, x))
-    iterator = iter(x._endpoints)
+    iterator = iter(x.__as_interval__()._endpoints)
     return Interval(*[
         (atan_down(lower), atan_up(upper))
         for lower, upper in zip(iterator, iterator)
@@ -192,7 +434,7 @@ def atanh(x: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
         x = float(x)
         x = Interval((x, x))
-    iterator = iter(x._endpoints)
+    iterator = iter(x.__as_interval__()._endpoints)
     return Interval(*[
         (atanh_down(lower), atanh_up(upper))
         for lower, upper in zip(iterator, iterator)
@@ -226,6 +468,41 @@ def cos(x: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
         x = float(x)
         x = Interval((x, x))
+    elif isinstance(x, PiMultiple):
+        intervals = []
+        for sub_interval in abs(x).sub_intervals:
+            lower = sub_interval._endpoints[0] % 2
+            upper = sub_interval._endpoints[1] - sub_interval._endpoints[0] + lower
+            if lower < 0.25:
+                L = cos_precise(Decimal(lower) * _BIG_PI)
+            elif lower < 0.75:
+                L = sin_precise(Decimal(0.5 - lower) * _BIG_PI)
+            elif lower < 1.25:
+                L = -cos_precise(Decimal(1.0 - lower) * _BIG_PI)
+            elif lower < 1.75:
+                L = sin_precise(Decimal(lower - 1.5) * _BIG_PI)
+            else:
+                L = cos_precise(Decimal(2.0 - lower) * _BIG_PI)
+            if upper < 0.25:
+                U = cos_precise(Decimal(upper) * _BIG_PI)
+            elif upper < 0.75:
+                U = sin_precise(Decimal(0.5 - upper) * _BIG_PI)
+            elif upper < 1.25:
+                U = -cos_precise(Decimal(1.0 - upper) * _BIG_PI)
+            elif upper < 1.75:
+                U = sin_precise(Decimal(upper - 1.5) * _BIG_PI)
+            else:
+                U = cos_precise(Decimal(2.0 - upper) * _BIG_PI)
+            intervals.append((
+                -1.0
+                if lower <= 1.0 <= upper or 3.0 <= upper
+                else decimal_down(min(L, U)),
+                1.0
+                if lower == 0.0 or 2.0 <= upper
+                else decimal_up(max(L, U)),
+            ))
+        return Interval(*intervals)
+    x = abs(x.__as_interval__())
     if len(x._endpoints) == 0:
         return x
     elif math.isinf(x._endpoints[0]) or math.isinf(x._endpoints[-1]):
@@ -233,26 +510,16 @@ def cos(x: Union[Interval, float]) -> Interval:
     iterator = iter(x._endpoints)
     return Interval(*[
         (
-            -1
-            if (
-                lower < upper
-                and (
-                    lower <= (upper // (2 * math.pi)) * (2 * math.pi) + (math.pi / 2) <= upper
-                    or lower <= (upper // (2 * math.pi)) * (2 * math.pi) - (math.pi / 2) <= upper
-                )
-            )
+            -1.0
+            if L <= _BIG_PI <= U or 3 * _BIG_PI <= U
             else min(cos_down(lower), cos_down(upper)),
-            1
-            if (
-                lower < upper
-                and (
-                    lower <= (upper // (2 * math.pi)) * (2 * math.pi) <= upper
-                    or lower <= (upper // (2 * math.pi)) * (2 * math.pi) - (2 * math.pi) <= upper
-                )
-            )
+            1.0
+            if L == 0.0 or 2 * _BIG_PI <= U
             else max(cos_up(lower), cos_up(upper)),
         )
         for lower, upper in zip(iterator, iterator)
+        for L in [Decimal(lower) % (2 * _BIG_PI)]
+        for U in [Decimal(upper) - Decimal(lower) + L]
     ])
 
 def cos_down(x: float) -> float:
@@ -265,7 +532,7 @@ def cosh(x: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
         x = float(x)
         x = Interval((x, x))
-    iterator = iter(x._endpoints)
+    iterator = iter(x.__as_interval__()._endpoints)
     return Interval(*[
         (
             1.0
@@ -302,7 +569,7 @@ def exp(x: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
         x = float(x)
         x = Interval((x, x))
-    iterator = iter(x._endpoints)
+    iterator = iter(x.__as_interval__()._endpoints)
     return Interval(*[(exp_down(lower), exp_up(upper)) for lower, upper in zip(iterator, iterator)])
 
 def exp_down(x: float) -> float:
@@ -321,6 +588,7 @@ def log(x: Union[Interval, float], base: Optional[Union[Interval, float]] = None
     if not isinstance(x, Interval):
         x = float(x)
         x = Interval((x, x))
+    x = x.__as_interval__()
     if base is None:
         iterator = iter(x[0:]._endpoints)
         return Interval(*[
@@ -328,7 +596,7 @@ def log(x: Union[Interval, float], base: Optional[Union[Interval, float]] = None
             for lower, upper in zip(iterator, iterator)
         ])
     elif isinstance(base, Interval):
-        base = base[0:]
+        base = base.__as_interval__()[0:]
         return Interval(
             *[
                 (log_down(XL, BU), log_up(XU, BL))
@@ -376,6 +644,41 @@ def sin(x: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
         x = float(x)
         x = Interval((x, x))
+    elif isinstance(x, PiMultiple):
+        intervals = []
+        for sub_interval in x.sub_intervals:
+            lower = sub_interval._endpoints[0] % 2
+            upper = sub_interval._endpoints[1] - sub_interval._endpoints[0] + lower
+            if lower < 0.25:
+                L = sin_precise(Decimal(lower) * _BIG_PI)
+            elif lower < 0.75:
+                L = cos_precise(Decimal(0.5 - lower) * _BIG_PI)
+            elif lower < 1.25:
+                L = sin_precise(Decimal(1.0 - lower) * _BIG_PI)
+            elif lower < 1.75:
+                L = -cos_precise(Decimal(1.5 - lower) * _BIG_PI)
+            else:
+                L = sin_precise(Decimal(lower - 2.0) * _BIG_PI)
+            if upper < 0.25:
+                U = sin_precise(Decimal(upper) * _BIG_PI)
+            elif upper < 0.75:
+                U = cos_precise(Decimal(0.5 - upper) * _BIG_PI)
+            elif upper < 1.25:
+                U = sin_precise(Decimal(1.0 - upper) * _BIG_PI)
+            elif upper < 1.75:
+                U = -cos_precise(Decimal(1.5 - upper) * _BIG_PI)
+            else:
+                U = sin_precise(Decimal(upper - 2.0) * _BIG_PI)
+            intervals.append((
+                -1.0
+                if lower <= 1.5 <= upper
+                else decimal_down(min(L, U)),
+                1.0
+                if lower <= 0.5 <= upper or 2.5 <= upper
+                else decimal_up(max(L, U)),
+            ))
+        return Interval(*intervals)
+    x = x.__as_interval__()
     if len(x._endpoints) == 0:
         return x
     elif math.isinf(x._endpoints[0]) or math.isinf(x._endpoints[-1]):
@@ -383,26 +686,16 @@ def sin(x: Union[Interval, float]) -> Interval:
     iterator = iter(x._endpoints)
     return Interval(*[
         (
-            -1
-            if (
-                lower < upper
-                and (
-                    lower <= (upper // (2 * math.pi)) * (2 * math.pi) - (math.pi / 2) <= upper
-                    or lower <= (upper // (2 * math.pi)) * (2 * math.pi) + (3 * math.pi / 2) <= upper
-                )
-            )
+            -1.0
+            if L <= 3 * _BIG_PI / 2 <= U
             else min(sin_down(lower), sin_down(upper)),
-            1
-            if (
-                lower < upper
-                and (
-                    lower <= (upper // (2 * math.pi)) * (2 * math.pi) + (math.pi / 2) <= upper
-                    or lower <= (upper // (2 * math.pi)) * (2 * math.pi) - (3 * math.pi / 2) <= upper
-                )
-            )
+            1.0
+            if L <= _BIG_PI / 2 <= U or 5 * _BIG_PI / 2 <= U
             else max(sin_up(lower), sin_up(upper)),
         )
         for lower, upper in zip(iterator, iterator)
+        for L in [Decimal(lower) % (2 * _BIG_PI)]
+        for U in [Decimal(upper) - Decimal(lower) + L]
     ])
 
 def sin_down(x: float) -> float:
@@ -415,7 +708,7 @@ def sinh(x: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
         x = float(x)
         x = Interval((x, x))
-    iterator = iter(x._endpoints)
+    iterator = iter(x.__as_interval__()._endpoints)
     return Interval(*[
         (
             min(sinh_down(lower), sinh_down(upper)),
@@ -447,12 +740,14 @@ def sinh_up(x: float) -> float:
         return math.inf if x > 0 else -math.inf
 
 def sqrt(x: Union[Interval, float]) -> Interval:
-    if isinstance(x, Interval):
-        iterator = iter(x[0:]._endpoints)
-        return Interval(*[
-            (sqrt_down(lower), sqrt_up(upper))
-            for lower, upper in zip(iterator, iterator)
-        ])
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
+    iterator = iter(x.__as_interval__()[0:]._endpoints)
+    return Interval(*[
+        (sqrt_down(lower), sqrt_up(upper))
+        for lower, upper in zip(iterator, iterator)
+    ])
 
 def sqrt_down(x: float) -> float:
     y = math.sqrt(x)
@@ -478,34 +773,56 @@ def tan(x: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
         x = float(x)
         x = Interval((x, x))
-    iterator = iter(x._endpoints)
-    return Interval(*[
-        interval
-        for lower, upper in zip(iterator, iterator)
-        for L in [tan_down(lower)]
-        for U in [tan_up(upper)]
-        for interval in (
-            [(L, U)]
-            if (
-                lower == upper
-                or not (
-                    lower <= (upper // math.pi) * math.pi - (math.pi / 2) <= upper
-                    or lower <= (upper // math.pi) * math.pi + (math.pi / 2) <= upper
-                )
-            )
-            else [(-math.inf, U), (L, math.inf)]
-            if upper - lower < math.pi or 1 == len({
-                x
-                for x in {
-                    (lower // math.pi) * math.pi + (math.pi / 2),
-                    (upper // math.pi) * math.pi - (math.pi / 2),
-                    (upper // math.pi) * math.pi + (math.pi / 2),
-                }
-                if lower <= x <= upper
-            })
-            else [(-math.inf, math.inf)]
-        )
-    ])
+    intervals = []
+    if isinstance(x, PiMultiple):
+        for sub_interval in x.sub_intervals:
+            lower = sub_interval._endpoints[0] % 1
+            upper = sub_interval._endpoints[1] - sub_interval._endpoints[0] + lower
+            if lower == 0.5 == upper:
+                continue
+            if upper - lower >= 1.0:
+                return interval
+            if lower < 0.25:
+                c = cos_precise(Decimal(lower) * _BIG_PI)
+                s = sin_precise(Decimal(lower) * _BIG_PI)
+            elif lower < 0.75:
+                lower -= 0.5
+                s = -cos_precise(Decimal(lower) * _BIG_PI)
+                c = sin_precise(Decimal(lower) * _BIG_PI)
+            else:
+                lower -= 1.0
+                c = -cos_precise(Decimal(lower) * _BIG_PI)
+                s = sin_precise(Decimal(lower) * _BIG_PI)
+            L = s / c
+            if upper < 0.25:
+                c, s = cos_sin_precise(lower)
+            elif lower < 0.75:
+                s, c = cos_sin_precise(lower - 0.5)
+                s *= -1
+            else:
+                c, s = cos_sin_precise(lower - 1.0)
+                c *= -1
+            U = s / c
+            if U - L > upper - lower:
+                intervals.append((decimal_down(L), decimal_up(U)))
+            else:
+                intervals.append((-math.inf, decimal_up(U)))
+                intervals.append((decimal_down(L), math.inf))
+    else:
+        iterator = iter(x.__as_interval__()._endpoints)
+        for lower, upper in zip(iterator, iterator):
+            if Decimal(upper) - Decimal(lower) > _BIG_PI:
+                return interval
+            c, s = cos_sin_precise(lower)
+            L = c / s
+            c, s = cos_sin_precise(upper)
+            U = c / s
+            if U - L > upper - lower:
+                intervals.append((decimal_down(L), decimal_up(U)))
+            else:
+                intervals.append((-math.inf, decimal_up(U)))
+                intervals.append((decimal_down(L), math.inf))
+    return Interval(*intervals)
 
 def tan_down(x: float) -> float:
     c, s = cos_sin_precise(x)
@@ -519,7 +836,7 @@ def tanh(x: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
         x = float(x)
         x = Interval((x, x))
-    iterator = iter(x._endpoints)
+    iterator = iter(x.__as_interval__()._endpoints)
     return Interval(*[
         (tanh_down(lower), tanh_up(upper))
         for lower, upper in zip(iterator, iterator)
@@ -543,9 +860,13 @@ def tanh_up(x: float) -> float:
 
 def unadd(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
-        x = Interval((float(x),) * 2)
+        x = float(x)
+        x = Interval((x, x))
     if not isinstance(y, Interval):
-        y = Interval((float(y),) * 2)
+        y = float(x)
+        y = Interval((y, y))
+    x = x.__as_interval__()
+    y = y.__as_interval__()
     result = interval
     for yi in y.sub_intervals:
         intervals = []
@@ -560,9 +881,13 @@ def unadd(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
 
 def undiv(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
-        x = Interval((float(x),) * 2)
+        x = float(x)
+        x = Interval((x, x))
     if not isinstance(y, Interval):
-        y = Interval((float(y),) * 2)
+        y = float(x)
+        y = Interval((y, y))
+    x = x.__as_interval__()
+    y = y.__as_interval__()
     result = interval
     intervals = []
     for temp in y.sub_intervals:
@@ -644,9 +969,13 @@ def undiv(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
 
 def unmul(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
-        x = Interval((float(x),) * 2)
+        x = float(x)
+        x = Interval((x, x))
     if not isinstance(y, Interval):
-        y = Interval((float(y),) * 2)
+        y = float(x)
+        y = Interval((y, y))
+    x = x.__as_interval__()
+    y = y.__as_interval__()
     result = interval
     intervals = []
     for temp in y.sub_intervals:
@@ -726,9 +1055,13 @@ def unmul(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
 
 def unrdiv(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
-        x = Interval((float(x),) * 2)
+        x = float(x)
+        x = Interval((x, x))
     if not isinstance(y, Interval):
-        y = Interval((float(y),) * 2)
+        y = float(x)
+        y = Interval((y, y))
+    x = x.__as_interval__()
+    y = y.__as_interval__()
     result = interval
     intervals = []
     for temp in y.sub_intervals:
@@ -818,9 +1151,13 @@ def unrdiv(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
 
 def unrsub(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
-        x = Interval((float(x),) * 2)
+        x = float(x)
+        x = Interval((x, x))
     if not isinstance(y, Interval):
-        y = Interval((float(y),) * 2)
+        y = float(x)
+        y = Interval((y, y))
+    x = x.__as_interval__()
+    y = y.__as_interval__()
     result = interval
     for yi in y.sub_intervals:
         intervals = []
@@ -835,9 +1172,13 @@ def unrsub(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
 
 def unsub(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
-        x = Interval((float(x),) * 2)
+        x = float(x)
+        x = Interval((x, x))
     if not isinstance(y, Interval):
-        y = Interval((float(y),) * 2)
+        y = float(x)
+        y = Interval((y, y))
+    x = x.__as_interval__()
+    y = y.__as_interval__()
     result = interval
     for yi in y.sub_intervals:
         intervals = []
