@@ -27,11 +27,13 @@ class Interval:
                 elif isnan(float(x)):
                     raise ValueError(f"could not interpret {x!r} as a real value")
         intervals = [
-            (lower, upper)
+            (L, U)
             for lower, upper in args
-            if lower <= upper
-            if not isinf(lower) or lower < 0
-            if not isinf(upper) or upper > 0
+            for L in [float(lower)]
+            for U in [float(upper)]
+            if L <= U
+            if not isinf(L) or L < 0
+            if not isinf(U) or U > 0
         ]
         intervals.sort()
         if len(intervals) == 0:
