@@ -1,6 +1,12 @@
 import math
 from decimal import Decimal
 
+def multi_add(*args: float) -> list[float]:
+    partials = []
+    for arg in args:
+        partials_add(partials, arg)
+    return partials
+
 def partials_add(partials: list[float], x: float) -> list[float]:
     i = 0
     for y in partials:
@@ -69,6 +75,8 @@ def mul_precise(x: float, y: float) -> list[float]:
     return partials
 
 def mul_down(x: float, y: float) -> float:
+    if x * y == math.inf and not math.isinf(x) and not math.isinf(y):
+        return math.nextafter(math.inf, 0.0)
     partials = mul_precise(x, y)
     if len(partials) == 1 or partials[-2] >= 0.0:
         return partials[-1]
@@ -76,6 +84,8 @@ def mul_down(x: float, y: float) -> float:
         return math.nextafter(partials[-1], -math.inf)
 
 def mul_up(x: float, y: float) -> float:
+    if x * y == -math.inf and not math.isinf(x) and not math.isinf(y):
+        return math.nextafter(-math.inf, 0.0)
     partials = mul_precise(x, y)
     if len(partials) == 1 or partials[-2] <= 0.0:
         return partials[-1]
@@ -91,7 +101,9 @@ def div_down(x: float, y: float) -> float:
         else:
             return 0.0
     quotient = x / y
-    if math.isinf(quotient):
+    if quotient == math.inf and not math.isinf(x):
+        return math.nextafter(math.inf, 0.0)
+    elif math.isinf(quotient):
         return quotient
     elif quotient != 0.0:
         partials = mul_precise(quotient, y)
@@ -123,7 +135,9 @@ def div_up(x: float, y: float) -> float:
         else:
             return math.inf
     quotient = x / y
-    if math.isinf(quotient):
+    if quotient == -math.inf and not math.isinf(x):
+        return math.nextafter(-math.inf, 0.0)
+    elif math.isinf(quotient):
         return quotient
     elif quotient != 0.0:
         partials = mul_precise(quotient, y)
@@ -147,7 +161,11 @@ def div_up(x: float, y: float) -> float:
         return math.nextafter(0.0, math.inf)
 
 def pow_down(x: float, y: float) -> float:
-    result = float(x) ** y
+    x = float(x)
+    try:
+        result = math.pow(x, y)
+    except OverflowError:
+        return math.nextafter(x ** (y % 2) * math.inf, -math.inf)
     if (
         round(y) == y
         or x <= 0.0
@@ -164,7 +182,11 @@ def pow_down(x: float, y: float) -> float:
         return result
 
 def pow_up(x: float, y: float) -> float:
-    result = float(x) ** y
+    x = float(x)
+    try:
+        result = math.pow(x, y)
+    except OverflowError:
+        return math.nextafter(x ** (y % 2) * math.inf, math.inf)
     if (
         round(y) == y
         or x <= 0.0
