@@ -1,369 +1,452 @@
+import decimal
 import math
 from decimal import Decimal, localcontext
-from typing import Optional, Union, overload
+from typing import Optional, Union
 
 from .fpu_rounding import *
 from .interval import Interval, interval
 
-e = Decimal("2.71828182845904523536028747")
-pi = Decimal("3.1415926535897932384626433")
-
-@overload
-def cos(x: float) -> float: ...
-
-@overload
-def cos(x: Interval) -> Interval: ...
-
-def cos(x):
-    if isinstance(x, Interval):
-        if len(x._endpoints) == 0:
-            return x
-        elif math.isinf(x._endpoints[0]) or math.isinf(x._endpoints[-1]):
-            return interval[-1.0:1.0]
-        iterator = iter(x._endpoints)
-        return Interval(*[
-            (
-                -1
-                if lower <= (upper // (2 * math.pi)) * (2 * math.pi) + (math.pi / 2) <= upper
-                or lower <= (upper // (2 * math.pi)) * (2 * math.pi) - (math.pi / 2) <= upper
-                else min(cos_down(lower), cos_down(upper)),
-                1
-                if lower <= (upper // (2 * math.pi)) * (2 * math.pi) <= upper
-                or lower <= (upper // (2 * math.pi)) * (2 * math.pi) - (2 * math.pi) <= upper
-                else max(cos_up(lower), cos_up(upper)),
-            )
-            for lower, upper in zip(iterator, iterator)
-        ])
+def decimal_down(x: Decimal) -> float:
+    y = float(x)
+    if x < y:
+        return math.nextafter(y, -math.inf)
     else:
-        return math.cos(x)
+        return y
+
+def decimal_up(x: Decimal) -> float:
+    y = float(x)
+    if x > y:
+        return math.nextafter(y, math.inf)
+    else:
+        return y
+
+def cos_precise(x: Decimal) -> Decimal:
+    i = last_s = 0
+    s = fact = num = sign = 1
+    x *= x
+    while s != last_s:
+        last_s = s
+        i += 2
+        fact *= i * (i - 1)
+        num *= x
+        sign *= -1
+        s += sign * num / fact
+    return s
+
+def sin_precise(x: Decimal) -> Decimal:
+    s = num = x
+    last_s = 0
+    i = fact = sign = 1
+    x *= x
+    while s != last_s:
+        last_s = s
+        i += 2
+        fact *= i * (i - 1)
+        num *= x
+        sign *= -1
+        s += sign * num / fact
+    return s
+
+def cos_sin_precise(x: float) -> tuple[Decimal, Decimal]:
+    mantissa, exponent = math.frexp(x)
+    if not exponent > 0:
+        mantissa = math.ldexp(mantissa, exponent)
+        exponent = 0
+    with localcontext() as ctx:
+        ctx.prec += int(exponent * math.log10(2)) + 10
+        d = Decimal(mantissa)
+        c = cos_precise(d)
+        s = sin_precise(d)
+        for _ in range(exponent):
+            c, s = (c + s) * (c - s), 2 * c * s
+        return c, s
+
+def acos(x: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
+    iterator = reversed(x[-1.0:1.0]._endpoints)
+    return Interval(*[
+        (acos_down(upper), acos_up(lower))
+        for upper, lower in zip(iterator, iterator)
+    ])
+
+def acos_down(x: float) -> float:
+    y = math.acos(x)
+    if cos_sin_precise(y)[0] < x:
+        return math.nextafter(y, 0.0)
+    else:
+        return y
+
+def acos_up(x: float) -> float:
+    y = math.acos(x)
+    if cos_sin_precise(y)[0] > x:
+        return math.nextafter(y, 4.0)
+    else:
+        return y
+
+def acosh(x: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
+    iterator = iter(x[1.0:]._endpoints)
+    return Interval(*[
+        (acosh_down(lower), acosh_up(upper))
+        for lower, upper in zip(iterator, iterator)
+    ])
+
+def acosh_down(x: float) -> float:
+    y = math.acosh(x)
+    d = Decimal(y)
+    if (d.exp() + (-d).exp()) / 2 > x:
+        return math.nextafter(y, 0.0)
+    else:
+        return y
+
+def acosh_up(x: float) -> float:
+    y = math.acosh(x)
+    d = Decimal(y)
+    if (d.exp() + (-d).exp()) / 2 < x:
+        return math.nextafter(y, math.inf)
+    else:
+        return y
+
+def asin(x: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
+    iterator = iter(x[-1.0:1.0]._endpoints)
+    return Interval(*[
+        (asin_down(lower), asin_up(upper))
+        for lower, upper in zip(iterator, iterator)
+    ])
+
+def asin_down(x: float) -> float:
+    y = math.asin(x)
+    if cos_sin_precise(y)[1] > x:
+        return math.nextafter(y, -math.inf)
+    else:
+        return y
+
+def asin_up(x: float) -> float:
+    y = math.asin(x)
+    d = Decimal(y)
+    if cos_sin_precise(y)[1] < x:
+        return math.nextafter(y, math.inf)
+    else:
+        return y
+
+def asinh(x: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
+    iterator = iter(x._endpoints)
+    return Interval(*[
+        (asinh_down(lower), asinh_up(upper))
+        for lower, upper in zip(iterator, iterator)
+    ])
+
+def asinh_down(x: float) -> float:
+    y = math.asinh(x)
+    d = Decimal(y)
+    if (d.exp() - (-d).exp()) / 2 > x:
+        return math.nextafter(y, -math.inf)
+    else:
+        return y
+
+def asinh_up(x: float) -> float:
+    y = math.asinh(x)
+    d = Decimal(y)
+    if (d.exp() - (-d).exp()) / 2 < x:
+        return math.nextafter(y, math.inf)
+    else:
+        return y
+
+def atan(x: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
+    iterator = iter(x._endpoints)
+    return Interval(*[
+        (atan_down(lower), atan_up(upper))
+        for lower, upper in zip(iterator, iterator)
+    ])
+
+def atan_down(x: float) -> float:
+    y = math.atan(x)
+    c, s = cos_sin_precise(y)
+    if s / c > x:
+        return math.nextafter(y, -math.inf)
+    else:
+        return y
+
+def atan_up(x: float) -> float:
+    y = math.atan(x)
+    c, s = cos_sin_precise(y)
+    if s / c < x:
+        return math.nextafter(y, math.inf)
+    else:
+        return y
+
+def atanh(x: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
+    iterator = iter(x._endpoints)
+    return Interval(*[
+        (atanh_down(lower), atanh_up(upper))
+        for lower, upper in zip(iterator, iterator)
+    ])
+
+def atanh_down(x: float) -> float:
+    y = math.atanh(x)
+    d = 2 * Decimal(y)
+    if d > 0:
+        t = (1 - (-d).exp()) / (1 + (-d).exp())
+    else:
+        t = (d.exp() - 1) / (d.exp() + 1)
+    if t > x:
+        return math.nextafter(y, -math.inf)
+    else:
+        return y
+
+def atanh_up(x: float) -> float:
+    y = math.atanh(x)
+    d = 2 * Decimal(y)
+    if d > 0:
+        t = (1 - (-d).exp()) / (1 + (-d).exp())
+    else:
+        t = (d.exp() - 1) / (d.exp() + 1)
+    if t > x:
+        return math.nextafter(y, math.inf)
+    else:
+        return y
+
+def cos(x: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
+    if len(x._endpoints) == 0:
+        return x
+    elif math.isinf(x._endpoints[0]) or math.isinf(x._endpoints[-1]):
+        return interval[-1.0:1.0]
+    iterator = iter(x._endpoints)
+    return Interval(*[
+        (
+            -1
+            if (
+                lower < upper
+                and (
+                    lower <= (upper // (2 * math.pi)) * (2 * math.pi) + (math.pi / 2) <= upper
+                    or lower <= (upper // (2 * math.pi)) * (2 * math.pi) - (math.pi / 2) <= upper
+                )
+            )
+            else min(cos_down(lower), cos_down(upper)),
+            1
+            if (
+                lower < upper
+                and (
+                    lower <= (upper // (2 * math.pi)) * (2 * math.pi) <= upper
+                    or lower <= (upper // (2 * math.pi)) * (2 * math.pi) - (2 * math.pi) <= upper
+                )
+            )
+            else max(cos_up(lower), cos_up(upper)),
+        )
+        for lower, upper in zip(iterator, iterator)
+    ])
 
 def cos_down(x: float) -> float:
-    if float(x) * x < math.ulp(x):
-        return math.nextafter(1.0, 0.0)
-    with localcontext() as ctx:
-        ctx.prec += 2
-        t = Decimal(x) % (2 * pi)
-        t **= 2
-        i = lasts = 0
-        s = fact = num = sign = 1
-        while s != lasts:
-            lasts = s
-            i += 2
-            fact *= i * (i - 1)
-            num *= t
-            sign *= -1
-            s += sign * num / fact
-        result = float(s - Decimal(0.5 * math.ulp(s)))
-    if result < -1.0:
-        return -1.0
-    else:
-        return result
+    return decimal_down(cos_sin_precise(x)[0])
 
 def cos_up(x: float) -> float:
-    if float(x) * x < math.ulp(x):
-        return 1.0
-    with localcontext() as ctx:
-        ctx.prec += 2
-        t = Decimal(x) % (2 * pi)
-        t **= 2
-        i = lasts = 0
-        s = fact = num = sign = 1
-        while s != lasts:
-            lasts = s
-            i += 2
-            fact *= i * (i - 1)
-            num *= t
-            sign *= -1
-            s += sign * num / fact
-        result = float(s + Decimal(0.5 * math.ulp(s)))
-    if result > 1.0:
-        return 1.0
-    else:
-        return result
+    return decimal_up(cos_sin_precise(x)[0])
 
-@overload
-def cosh(x: float) -> float: ...
-
-@overload
-def cosh(x: Interval) -> Interval: ...
-
-def cosh(x):
-    if isinstance(x, Interval):
-        iterator = iter(x._endpoints)
-        return Interval(*[
-            (
-                1.0
-                if lower <= 0.0 <= upper
-                else min(cosh_down(lower), cosh_down(upper)),
-                max(cosh_up(lower), cosh_up(upper)),
-            )
-            for lower, upper in zip(iterator, iterator)
-        ])
-    else:
-        return math.cosh(x)
+def cosh(x: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
+    iterator = iter(x._endpoints)
+    return Interval(*[
+        (
+            1.0
+            if lower <= 0.0 <= upper
+            else min(cosh_down(lower), cosh_down(upper)),
+            max(cosh_up(lower), cosh_up(upper)),
+        )
+        for lower, upper in zip(iterator, iterator)
+    ])
 
 def cosh_down(x: float) -> float:
+    x = Decimal(x)
     try:
-        result = math.cosh(x)
-    except OverflowError:
+        return decimal_down((x.exp() + (-x).exp()) / 2)
+    except decimal.Overflow:
+        pass
+    try:
+        return decimal_down((x - Decimal(2).ln()).exp() + (-x - Decimal(2).ln()).exp())
+    except decimal.Overflow:
         return math.inf
-    if (e ** Decimal(x) + e ** Decimal(-x)) / 2 < result:
-        return math.nextafter(result, 1.0)
-    return result
 
 def cosh_up(x: float) -> float:
+    x = Decimal(x)
     try:
-        result = math.cosh(x)
-    except OverflowError:
+        return decimal_up((x.exp() + (-x).exp()) / 2)
+    except decimal.Overflow:
+        pass
+    try:
+        return decimal_up((x - Decimal(2).ln()).exp() + (-x - Decimal(2).ln()).exp())
+    except decimal.Overflow:
         return math.inf
-    if (e ** Decimal(x) + e ** Decimal(-x)) / 2 > result:
-        return math.nextafter(result, result + 1)
-    return result
 
-@overload
-def exp(x: float) -> float: ...
-
-@overload
-def exp(x: Interval) -> Interval: ...
-
-def exp(x):
-    if isinstance(x, Interval):
-        iterator = iter(x._endpoints)
-        return Interval(*[(exp_down(lower), exp_up(upper)) for lower, upper in zip(iterator, iterator)])
-    else:
-        return math.exp(x)
+def exp(x: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
+    iterator = iter(x._endpoints)
+    return Interval(*[(exp_down(lower), exp_up(upper)) for lower, upper in zip(iterator, iterator)])
 
 def exp_down(x: float) -> float:
     try:
-        result = math.exp(x)
-    except OverflowError:
+        return decimal_down(Decimal(x).exp())
+    except decimal.Overflow:
         return math.inf
-    if e ** Decimal(x) < result:
-        return math.nextafter(result, 0.0)
-    else:
-        return result
 
 def exp_up(x: float) -> float:
     try:
-        result = math.exp(x)
-    except OverflowError:
+        return decimal_up(Decimal(x).exp())
+    except decimal.Overflow:
         return math.inf
-    if result == 0.0:
-        return math.nextafter(0.0, 1.0)
-    elif e ** Decimal(x) > result:
-        return math.nextafter(result, 2 * result)
-    else:
-        return result
 
-@overload
-def log(x: float, base: float = ...) -> float: ...
-
-@overload
-def log(x: Union[Interval, float], base: Union[Interval, float] = ...) -> Interval: ...
-
-def log(x, base=None):
+def log(x: Union[Interval, float], base: Optional[Union[Interval, float]] = None) -> Interval:
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
     if base is None:
-        if isinstance(x, Interval):
-            iterator = iter(x[0:]._endpoints)
-            return Interval(*[
-                (log_down(lower), log_up(upper))
-                for lower, upper in zip(iterator, iterator)
-            ])
-        else:
-            return math.log(x)
+        iterator = iter(x[0:]._endpoints)
+        return Interval(*[
+            (log_down(lower), log_up(upper))
+            for lower, upper in zip(iterator, iterator)
+        ])
     elif isinstance(base, Interval):
         base = base[0:]
-        if isinstance(x, Interval):
-            return Interval(
-                *[
-                    (log_down(XL, BU), log_up(XU, BL))
-                    for XL, XU in zip(*[iter(x[0:]._endpoints)] * 2)
-                    for BL, BU in zip(*[iter(base[0:1]._endpoints)] * 2)
-                ],
-                *[
-                    (log_down(XL, BU), log_up(XU, BL))
-                    for XL, XU in zip(*[iter(x[0:]._endpoints)] * 2)
-                    for BL, BU in zip(*[iter(base[1:]._endpoints)] * 2)
-                ],
-            )
-        else:
-            return Interval(
-                *[
-                    (log_down(x, BU), log_up(x, BL))
-                    for BL, BU in zip(*[iter(base[0:1]._endpoints)] * 2)
-                ],
-                *[
-                    (log_down(x, BU), log_up(x, BL))
-                    for BL, BU in zip(*[iter(base[1:]._endpoints)] * 2)
-                ],
-            )
+        return Interval(
+            *[
+                (log_down(XL, BU), log_up(XU, BL))
+                for XL, XU in zip(*[iter(x[0:]._endpoints)] * 2)
+                for BL, BU in zip(*[iter(base[0:1]._endpoints)] * 2)
+            ],
+            *[
+                (log_down(XL, BU), log_up(XU, BL))
+                for XL, XU in zip(*[iter(x[0:]._endpoints)] * 2)
+                for BL, BU in zip(*[iter(base[1:]._endpoints)] * 2)
+            ],
+        )
     else:
-        if isinstance(x, Interval):
-            iterator = iter(x[0:]._endpoints)
-            return Interval(*[
-                (log_down(lower, base), log_up(lower, base))
-                for lower, upper in zip(iterator, iterator)
-            ])
-        else:
-            return math.log(x, base)
+        iterator = iter(x[0:]._endpoints)
+        return Interval(*[
+            (log_down(lower, base), log_up(lower, base))
+            for lower, upper in zip(iterator, iterator)
+        ])
 
 def log_down(x: float, base: Optional[float] = None) -> float:
     if base is None:
         if x <= 0.0:
             return -math.inf
-        y = math.log(x)
-        if e ** Decimal(y) > x:
-            return math.nextafter(y, y - 1)
+        return decimal_down(Decimal(x).ln())
     elif base == 1.0:
         return -math.inf
     else:
         if x <= 0.0:
             return math.inf if base < 1.0 else -math.inf
-        y = math.log(x, base)
-        if Decimal(base) ** Decimal(y) > x:
-            return math.nextafter(y, y - 1)
-    return y
+        return decimal_down(Decimal(x).ln() / Decimal(base).ln())
 
 def log_up(x: float, base: Optional[float] = None) -> float:
     if base is None:
         if x <= 0.0:
             return -math.inf
-        y = math.log(x)
-        if e ** Decimal(y) < x:
-            return math.nextafter(y, y + 1)
+        return decimal_up(Decimal(x).ln())
     elif base == 1.0:
         return math.inf
     else:
         if x <= 0.0:
             return -math.inf if base > 1.0 else math.inf
-        y = math.log(x, base)
-        if Decimal(base) ** Decimal(y) < x:
-            return math.nextafter(y, y + 1)
-    return y
+        return decimal_up(Decimal(x).ln() / Decimal(base).ln())
 
-@overload
-def sin(x: float) -> float: ...
-
-@overload
-def sin(x: Interval) -> Interval: ...
-
-def sin(x):
-    if isinstance(x, Interval):
-        if len(x._endpoints) == 0:
-            return x
-        elif math.isinf(x._endpoints[0]) or math.isinf(x._endpoints[-1]):
-            return interval[-1.0:1.0]
-        iterator = iter(x._endpoints)
-        return Interval(*[
-            (
-                -1
-                if lower <= (upper // (2 * math.pi)) * (2 * math.pi) - (math.pi / 2) <= upper
-                or lower <= (upper // (2 * math.pi)) * (2 * math.pi) + (3 * math.pi / 2) <= upper
-                else min(sin_down(lower), sin_down(upper)),
-                1
-                if lower <= (upper // (2 * math.pi)) * (2 * math.pi) + (math.pi / 2) <= upper
-                or lower <= (upper // (2 * math.pi)) * (2 * math.pi) - (3 * math.pi / 2) <= upper
-                else max(sin_up(lower), sin_up(upper)),
+def sin(x: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
+    if len(x._endpoints) == 0:
+        return x
+    elif math.isinf(x._endpoints[0]) or math.isinf(x._endpoints[-1]):
+        return interval[-1.0:1.0]
+    iterator = iter(x._endpoints)
+    return Interval(*[
+        (
+            -1
+            if (
+                lower < upper
+                and (
+                    lower <= (upper // (2 * math.pi)) * (2 * math.pi) - (math.pi / 2) <= upper
+                    or lower <= (upper // (2 * math.pi)) * (2 * math.pi) + (3 * math.pi / 2) <= upper
+                )
             )
-            for lower, upper in zip(iterator, iterator)
-        ])
-    else:
-        return math.sin(x)
+            else min(sin_down(lower), sin_down(upper)),
+            1
+            if (
+                lower < upper
+                and (
+                    lower <= (upper // (2 * math.pi)) * (2 * math.pi) + (math.pi / 2) <= upper
+                    or lower <= (upper // (2 * math.pi)) * (2 * math.pi) - (3 * math.pi / 2) <= upper
+                )
+            )
+            else max(sin_up(lower), sin_up(upper)),
+        )
+        for lower, upper in zip(iterator, iterator)
+    ])
 
 def sin_down(x: float) -> float:
-    if x < 0:
-        return -sin_up(-x)
-    elif float(x) * x * x / 3 < math.ulp(x):
-        return math.nextafter(x, 0.0)
-    with localcontext() as ctx:
-        ctx.prec += 2
-        t = Decimal(abs(x)) % (2 * pi)
-        s = num = t
-        lasts = 0
-        i = fact = sign = 1
-        t **= 2
-        while s != lasts:
-            lasts = s
-            i += 2
-            fact *= i * (i - 1)
-            num *= t
-            sign *= -1
-            s += sign * num / fact
-        result = float(s - Decimal(0.5 * math.ulp(s)))
-    if result < -1.0:
-        return -1.0
-    else:
-        return result
+    return decimal_down(cos_sin_precise(x)[1])
 
 def sin_up(x: float) -> float:
-    if x < 0:
-        return -sin_down(-x)
-    elif float(x) * x * x / 3 < math.ulp(x):
-        return float(x)
-    with localcontext() as ctx:
-        ctx.prec += 2
-        t = Decimal(abs(x)) % (2 * pi)
-        s = num = t
-        lasts = 0
-        i = fact = sign = 1
-        t **= 2
-        while s != lasts:
-            lasts = s
-            i += 2
-            fact *= i * (i - 1)
-            num *= t
-            sign *= -1
-            s += sign * num / fact
-        result = float(s + Decimal(0.5 * math.ulp(s)))
-    if result > 1.0:
-        return 1.0
-    else:
-        return result
+    return decimal_up(cos_sin_precise(x)[1])
 
-@overload
-def sinh(x: float) -> float: ...
-
-@overload
-def sinh(x: Interval) -> Interval: ...
-
-def sinh(x):
-    if isinstance(x, Interval):
-        iterator = iter(x._endpoints)
-        return Interval(*[
-            (
-                min(sinh_down(lower), sinh_down(upper)),
-                max(sinh_up(lower), sinh_up(upper)),
-            )
-            for lower, upper in zip(iterator, iterator)
-        ])
-    else:
-        return math.sinh(x)
+def sinh(x: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
+    iterator = iter(x._endpoints)
+    return Interval(*[
+        (
+            min(sinh_down(lower), sinh_down(upper)),
+            max(sinh_up(lower), sinh_up(upper)),
+        )
+        for lower, upper in zip(iterator, iterator)
+    ])
 
 def sinh_down(x: float) -> float:
+    x = Decimal(x)
     try:
-        result = math.sinh(x)
-    except OverflowError:
-        return math.inf if x > 0.0 else -math.inf
-    if (e ** Decimal(x) - e ** Decimal(-x)) / 2 < result:
-        return math.nextafter(result, result - 1.0)
-    return result
+        return decimal_down((x.exp() - (-x).exp()) / 2)
+    except decimal.Overflow:
+        pass
+    try:
+        return decimal_down((x - Decimal(2).ln()).exp() - (-x - Decimal(2).ln()).exp())
+    except decimal.Overflow:
+        return math.inf if x > 0 else -math.inf
 
 def sinh_up(x: float) -> float:
+    x = Decimal(x)
     try:
-        result = math.sinh(x)
-    except OverflowError:
-        return math.inf if x > 0.0 else -math.inf
-    if (e ** Decimal(x) - e ** Decimal(-x)) / 2 > result:
-        return math.nextafter(result, result + 1.0)
-    return result
+        return decimal_up((x.exp() - (-x).exp()) / 2)
+    except decimal.Overflow:
+        pass
+    try:
+        return decimal_up((x - Decimal(2).ln()).exp() - (-x - Decimal(2).ln()).exp())
+    except decimal.Overflow:
+        return math.inf if x > 0 else -math.inf
 
-@overload
-def sqrt(x: float) -> float: ...
-
-@overload
-def sqrt(x: Interval) -> Interval: ...
-
-def sqrt(x):
+def sqrt(x: Union[Interval, float]) -> Interval:
     if isinstance(x, Interval):
         iterator = iter(x[0:]._endpoints)
         return Interval(*[
@@ -385,11 +468,78 @@ def sqrt_up(x: float) -> float:
     y = math.sqrt(x)
     partials = mul_precise(y, y)
     if partials[-1] < x:
-        return math.nextafter(y, 2 * y)
+        return math.nextafter(y, math.inf)
     elif partials[-1] > x or len(partials) == 1 or partials[-2] > 0.0:
         return y
     else:
-        return math.nextafter(y, 2 * y)
+        return math.nextafter(y, math.inf)
+
+def tan(x: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
+    iterator = iter(x._endpoints)
+    return Interval(*[
+        interval
+        for lower, upper in zip(iterator, iterator)
+        for L in [tan_down(lower)]
+        for U in [tan_up(upper)]
+        for interval in (
+            [(L, U)]
+            if (
+                lower == upper
+                or not (
+                    lower <= (upper // math.pi) * math.pi - (math.pi / 2) <= upper
+                    or lower <= (upper // math.pi) * math.pi + (math.pi / 2) <= upper
+                )
+            )
+            else [(-math.inf, U), (L, math.inf)]
+            if upper - lower < math.pi or 1 == len({
+                x
+                for x in {
+                    (lower // math.pi) * math.pi + (math.pi / 2),
+                    (upper // math.pi) * math.pi - (math.pi / 2),
+                    (upper // math.pi) * math.pi + (math.pi / 2),
+                }
+                if lower <= x <= upper
+            })
+            else [(-math.inf, math.inf)]
+        )
+    ])
+
+def tan_down(x: float) -> float:
+    c, s = cos_sin_precise(x)
+    return decimal_down(s / c)
+
+def tan_up(x: float) -> float:
+    c, s = cos_sin_precise(x)
+    return decimal_up(s / c)
+
+def tanh(x: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
+    iterator = iter(x._endpoints)
+    return Interval(*[
+        (tanh_down(lower), tanh_up(upper))
+        for lower, upper in zip(iterator, iterator)
+    ])
+
+def tanh_down(x: float) -> float:
+    d = 2 * Decimal(x)
+    if d > 0:
+        t = (1 - (-d).exp()) / (1 + (-d).exp())
+    else:
+        t = (d.exp() - 1) / (d.exp() + 1)
+    return decimal_down(t)
+
+def tanh_up(x: float) -> float:
+    d = 2 * Decimal(x)
+    if d > 0:
+        t = (1 - (-d).exp()) / (1 + (-d).exp())
+    else:
+        t = (d.exp() - 1) / (d.exp() + 1)
+    return decimal_up(t)
 
 def unadd(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
