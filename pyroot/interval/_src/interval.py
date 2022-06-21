@@ -264,26 +264,44 @@ class Interval:
             return result
         elif isinstance(other, SupportsIndex):
             other = operator.index(other)
-            temp1 = 1 / self if other < 0 else self
-            temp2 = interval[1:1]
-            other = abs(other)
-            if other % 2 == 0 and other != 0:
-                neg = temp1[:0]
-                pos = temp1[0:]
-                temp1 = (neg * neg) | (pos * pos)
-                other //= 2
-            while other > 0:
-                if other % 2 == 1:
-                    temp2 *= temp1
-                temp1 *= temp1
-                other //= 2
-            return temp2
+            intervals = []
+            iterator = iter(self._endpoints)
+            if other == 0:
+                for _ in iterator:
+                    intervals.append((1.0, 1.0))
+                    break
+            elif other % 2 == 0:
+                for lower, upper in zip(iterator, iterator):
+                    if upper <= 0:
+                        intervals.append((fpur.pow_down(upper, other), fpur.pow_up(lower, other)))
+                    elif lower >= 0:
+                        intervals.append((fpur.pow_down(lower, other), fpur.pow_up(upper, other)))
+                    else:
+                        intervals.append((0.0, fpur.pow_up(max(lower, upper, key=abs), other)))
+            else:
+                intervals = [
+                   (fpur.pow_down(lower, other), fpur.pow_up(upper, other))
+                   for lower, upper in zip(iterator, iterator)
+                ]
+            return type(self)(*intervals)
         elif isinstance(other, SupportsFloat):
             other = float(other)
             if other == round(other):
                 return self ** round(other)
+            elif other > 0:
+                iterator = iter(self[0:]._endpoints)
+                intervals = [
+                    (fpur.pow_down(lower, other), fpur.pow_up(upper, other))
+                    for lower, upper in zip(iterator, iterator)
+                ]
+                return type(self)(*intervals)
             else:
-                return self ** interval[other:other]
+                iterator = iter(self[0:]._endpoints)
+                intervals = [
+                    (fpur.pow_down(upper, other), fpur.pow_up(lower, other))
+                    for lower, upper in zip(iterator, iterator)
+                ]
+                return type(self)(*intervals)
         else:
             return NotImplemented
 
