@@ -494,8 +494,7 @@ class Interval:
 
     @property
     def size(self: Self, /) -> float:
-        iterator = iter(self._endpoints)
-        return sum(upper - lower for lower, upper in zip(iterator, iterator))
+        return sum(interval.maximum - interval.minimum for interval in self.sub_intervals)
 
     @property
     def sub_intervals(self: Self, /) -> Iterator[Self]:
