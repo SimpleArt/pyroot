@@ -754,12 +754,12 @@ def tan(x: Union[Interval, float]) -> Interval:
             if Decimal(upper) - Decimal(lower) > _BIG_PI:
                 return interval
             c, s = cos_sin_precise(lower)
-            L = c / s
+            L = s / c
             c, s = cos_sin_precise(upper)
-            U = c / s
             if U - L > upper - lower:
                 intervals.append((decimal_down(L), decimal_up(U)))
             else:
+            U = s / c
                 intervals.append((-math.inf, decimal_up(U)))
                 intervals.append((decimal_down(L), math.inf))
     return Interval(*intervals)
