@@ -187,6 +187,14 @@ class PiMultiple(Interval):
 
 pi = PiMultiple((1.0, 1.0))
 
+SPECIAL_ANGLES = {
+    -1.0: (1, 1, -1, 2),
+    -0.5: (2, 3, -1, 6),
+    0.0: (1, 2, 0, 1),
+    0.5: (1, 3, 1, 6),
+    1.0: (0, 1, 1, 2),
+}
+
 @overload
 def sym_mod(x: float, modulo: float) -> float: ...
 
@@ -279,11 +287,22 @@ def acos(x: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
         x = float(x)
         x = Interval((x, x))
-    iterator = reversed(x.__as_interval__()[-1.0:1.0]._endpoints)
-    return Interval(*[
-        (acos_down(upper), acos_up(lower))
-        for upper, lower in zip(iterator, iterator)
-    ])
+    iterator = iter(x.__as_interval__()[-1.0:1.0]._endpoints)
+    intervals = []
+    result = PiMultiple()
+    for lower, upper in zip(iterator, iterator):
+        if lower in SPECIAL_ANGLES and upper in SPECIAL_ANGLES:
+            L = SPECIAL_ANGLES[lower][:2]
+            U = SPECIAL_ANGLES[upper][:2]
+            result |= interval[div_down(U[0], U[1]) : div_up(L[0], L[1])] * pi
+            if result._endpoints == (0.0, 1.0):
+                return result
+        else:
+            intervals.append((acos_down(lower), acos_up(upper)))
+    if len(intervals) > 0:
+        return Interval(*intervals) | result
+    else:
+        return result
 
 def acos_down(x: float) -> float:
     y = math.acos(x)
@@ -330,10 +349,21 @@ def asin(x: Union[Interval, float]) -> Interval:
         x = float(x)
         x = Interval((x, x))
     iterator = iter(x.__as_interval__()[-1.0:1.0]._endpoints)
-    return Interval(*[
-        (asin_down(lower), asin_up(upper))
-        for lower, upper in zip(iterator, iterator)
-    ])
+    intervals = []
+    result = PiMultiple()
+    for lower, upper in zip(iterator, iterator):
+        if lower in SPECIAL_ANGLES and upper in SPECIAL_ANGLES:
+            L = SPECIAL_ANGLES[lower][2:]
+            U = SPECIAL_ANGLES[upper][2:]
+            result |= interval[div_down(L[0], L[1]) : div_up(U[0], U[1])] * pi
+            if result._endpoints == (-0.5, 0.5):
+                return result
+        else:
+            intervals.append((asin_down(lower), asin_up(upper)))
+    if len(intervals) > 0:
+        return Interval(*intervals) | result
+    else:
+        return result
 
 def asin_down(x: float) -> float:
     y = math.asin(x)
@@ -381,10 +411,38 @@ def atan(x: Union[Interval, float]) -> Interval:
         x = float(x)
         x = Interval((x, x))
     iterator = iter(x.__as_interval__()._endpoints)
-    return Interval(*[
-        (atan_down(lower), atan_up(upper))
-        for lower, upper in zip(iterator, iterator)
-    ])
+    intervals = []
+    result = PiMultiple()
+    for lower, upper in zip(iterator, iterator):
+        if (
+            lower in (-math.inf, -1.0, 0.0, 1.0, math.inf)
+            and upper in (-math.inf, -1.0, 0.0, 1.0, math.inf)
+        ):
+            if math.isinf(lower):
+                L = 0.5
+            elif lower == 0.0:
+                L = 0.0
+            else:
+                L = 0.25
+            if lower < 0:
+                L *= -1
+            if math.isinf(upper):
+                U = 0.5
+            elif upper == 0.0:
+                U = 0.0
+            else:
+                U = 0.25
+            if upper < 0:
+                U *= -1
+            result |= interval[L:U] * pi
+            if result._endpoints == (-0.5, 0.5):
+                return result
+        else:
+            intervals.append((atan_down(lower), atan_up(upper)))
+    if len(intervals) > 0:
+        return Interval(*intervals) | result
+    else:
+        return result
 
 def atan_down(x: float) -> float:
     y = math.atan(x)
