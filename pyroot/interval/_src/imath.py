@@ -2,7 +2,7 @@ import decimal
 import math
 import operator
 from decimal import Decimal, localcontext
-from typing import Any, Optional, SupportsFloat, SupportsIndex, TypeVar, Union
+from typing import Any, Optional, SupportsFloat, SupportsIndex, TypeVar, Union, overload
 
 from .fpu_rounding import *
 from .interval import Interval, interval
@@ -187,6 +187,23 @@ class PiMultiple(Interval):
 
 pi = PiMultiple((1.0, 1.0))
 
+@overload
+def sym_mod(x: float, modulo: float) -> float: ...
+
+@overload
+def sym_mod(x: Decimal, modulo: Decimal) -> Decimal: ...
+
+def sym_mod(x, modulo):
+    if x >= 0:
+        x %= 2 * modulo
+        if x > modulo:
+            x -= 2 * modulo
+    else:
+        x = -((-x) % (2 * modulo))
+        if x < -modulo:
+            x += 2 * modulo
+    return x
+
 def decimal_down(x: Decimal) -> float:
     y = float(x)
     if x < y:
@@ -204,6 +221,14 @@ def decimal_up(x: Decimal) -> float:
 def cos_precise(x: Decimal) -> Decimal:
     with localcontext() as ctx:
         ctx.prec += 2
+        if x >= 0:
+            x %= (2 * _BIG_PI)
+            if x > _BIG_PI:
+                x -= _BIG_PI
+        else:
+            x = -((-x) % (2 * _BIG_PI))
+            if x < -_BIG_PI:
+                x += _BIG_PI
         i = last_s = 0
         s = fact = num = sign = 1
         x *= x
@@ -219,6 +244,14 @@ def cos_precise(x: Decimal) -> Decimal:
 def sin_precise(x: Decimal) -> Decimal:
     with localcontext() as ctx:
         ctx.prec += 2
+        if x >= 0:
+            x %= (2 * _BIG_PI)
+            if x > _BIG_PI:
+                x -= _BIG_PI
+        else:
+            x = -((-x) % (2 * _BIG_PI))
+            if x < -_BIG_PI:
+                x += _BIG_PI
         s = num = x
         last_s = 0
         i = fact = sign = 1
@@ -235,9 +268,8 @@ def sin_precise(x: Decimal) -> Decimal:
 def cos_sin_precise(x: float) -> tuple[Decimal, Decimal]:
     with localcontext() as ctx:
         ctx.prec += int(2 * math.log10(1 + abs(x))) + 10
-        d = Decimal(abs(x)) % (2 * _BIG_PI)
-        c = cos_precise(d)
-        s = sin_precise(d)
+        c = cos_precise(Decimal(abs(x)))
+        s = sin_precise(Decimal(abs(x)))
         if x < 0:
             return (c, -s)
         else:
@@ -411,34 +443,37 @@ def cos(x: Union[Interval, float]) -> Interval:
     elif isinstance(x, PiMultiple):
         intervals = []
         for sub_interval in abs(x).sub_intervals:
-            lower = sub_interval._endpoints[0] % 2
+            lower = sym_mod(sub_interval._endpoints[0], 1)
             upper = sub_interval._endpoints[1] - sub_interval._endpoints[0] + lower
-            if lower < 0.25:
+            if not upper - lower < 2.0:
+                return Interval((-1.0, 1.0))
+            _upper = sym_mod(upper, 1)
+            if lower < -0.75:
+                L = -cos_precise((Decimal(lower) + 1) * _BIG_PI)
+            elif lower < -0.25:
+                L = sin_precise((Decimal(lower) + Decimal("0.5")) * _BIG_PI)
+            elif lower <= 0.25:
                 L = cos_precise(Decimal(lower) * _BIG_PI)
-            elif lower < 0.75:
-                L = sin_precise(Decimal(0.5 - lower) * _BIG_PI)
-            elif lower < 1.25:
-                L = -cos_precise(Decimal(1.0 - lower) * _BIG_PI)
-            elif lower < 1.75:
-                L = sin_precise(Decimal(lower - 1.5) * _BIG_PI)
+            elif lower <= 0.75:
+                L = -sin_precise((Decimal(lower) - Decimal("0.5")) * _BIG_PI)
             else:
-                L = cos_precise(Decimal(2.0 - lower) * _BIG_PI)
-            if upper < 0.25:
-                U = cos_precise(Decimal(upper) * _BIG_PI)
-            elif upper < 0.75:
-                U = sin_precise(Decimal(0.5 - upper) * _BIG_PI)
-            elif upper < 1.25:
-                U = -cos_precise(Decimal(1.0 - upper) * _BIG_PI)
-            elif upper < 1.75:
-                U = sin_precise(Decimal(upper - 1.5) * _BIG_PI)
+                L = -cos_precise((Decimal(lower) - 1) * _BIG_PI)
+            if _upper < -0.75:
+                U = -cos_precise((Decimal(_upper) + 1) * _BIG_PI)
+            elif _upper < -0.25:
+                U = sin_precise((Decimal(_upper) + Decimal("0.5")) * _BIG_PI)
+            elif _upper <= 0.25:
+                U = cos_precise(Decimal(_upper) * _BIG_PI)
+            elif _upper <= 0.75:
+                U = -sin_precise((Decimal(_upper) - Decimal("0.5")) * _BIG_PI)
             else:
-                U = cos_precise(Decimal(2.0 - upper) * _BIG_PI)
+                U = -cos_precise((Decimal(_upper) - 1) * _BIG_PI)
             intervals.append((
                 -1.0
-                if lower <= 1.0 <= upper or 3.0 <= upper
+                if not -1.0 < lower <= upper < 1.0
                 else decimal_down(min(L, U)),
                 1.0
-                if lower == 0.0 or 2.0 <= upper
+                if lower <= 0.0 <= upper or 2.0 <= upper
                 else decimal_up(max(L, U)),
             ))
         return Interval(*intervals)
@@ -451,14 +486,14 @@ def cos(x: Union[Interval, float]) -> Interval:
     return Interval(*[
         (
             -1.0
-            if L <= _BIG_PI <= U or 3 * _BIG_PI <= U
+            if L == -_BIG_PI or _BIG_PI <= U
             else min(cos_down(lower), cos_down(upper)),
             1.0
-            if L == 0.0 or 2 * _BIG_PI <= U
+            if L <= 0 <= U or 2 * _BIG_PI <= U
             else max(cos_up(lower), cos_up(upper)),
         )
         for lower, upper in zip(iterator, iterator)
-        for L in [Decimal(lower) % (2 * _BIG_PI)]
+        for L in [sym_mod(Decimal(lower), _BIG_PI)]
         for U in [Decimal(upper) - Decimal(lower) + L]
     ])
 
@@ -587,31 +622,34 @@ def sin(x: Union[Interval, float]) -> Interval:
     elif isinstance(x, PiMultiple):
         intervals = []
         for sub_interval in x.sub_intervals:
-            lower = sub_interval._endpoints[0] % 2
+            lower = sym_mod(sub_interval._endpoints[0], 1)
             upper = sub_interval._endpoints[1] - sub_interval._endpoints[0] + lower
-            if lower < 0.25:
+            if not upper - lower < 2.0:
+                return Interval((-1.0, 1.0))
+            _upper = sym_mod(upper, 1)
+            if lower < -0.75:
+                L = -sin_precise((Decimal(lower) + 1) * _BIG_PI)
+            elif lower < -0.25:
+                L = -cos_precise((Decimal(lower) + Decimal("0.5")) * _BIG_PI)
+            elif lower <= 0.25:
                 L = sin_precise(Decimal(lower) * _BIG_PI)
-            elif lower < 0.75:
-                L = cos_precise(Decimal(0.5 - lower) * _BIG_PI)
-            elif lower < 1.25:
-                L = sin_precise(Decimal(1.0 - lower) * _BIG_PI)
-            elif lower < 1.75:
-                L = -cos_precise(Decimal(1.5 - lower) * _BIG_PI)
+            elif lower <= 0.75:
+                L = cos_precise((Decimal(lower) - Decimal("0.5")) * _BIG_PI)
             else:
-                L = sin_precise(Decimal(lower - 2.0) * _BIG_PI)
-            if upper < 0.25:
-                U = sin_precise(Decimal(upper) * _BIG_PI)
-            elif upper < 0.75:
-                U = cos_precise(Decimal(0.5 - upper) * _BIG_PI)
-            elif upper < 1.25:
-                U = sin_precise(Decimal(1.0 - upper) * _BIG_PI)
-            elif upper < 1.75:
-                U = -cos_precise(Decimal(1.5 - upper) * _BIG_PI)
+                L = -sin_precise((Decimal(lower) - 1) * _BIG_PI)
+            if _upper < -0.75:
+                U = -sin_precise((Decimal(_upper) + 1) * _BIG_PI)
+            elif _upper < -0.25:
+                U = -cos_precise((Decimal(_upper) + Decimal("0.5")) * _BIG_PI)
+            elif _upper <= 0.25:
+                U = sin_precise(Decimal(_upper) * _BIG_PI)
+            elif _upper <= 0.75:
+                U = cos_precise((Decimal(_upper) - Decimal("0.5")) * _BIG_PI)
             else:
-                U = sin_precise(Decimal(upper - 2.0) * _BIG_PI)
+                U = -sin_precise((Decimal(_upper) - 1) * _BIG_PI)
             intervals.append((
                 -1.0
-                if lower <= 1.5 <= upper
+                if lower <= -0.5 <= upper or 1.5 <= upper
                 else decimal_down(min(L, U)),
                 1.0
                 if lower <= 0.5 <= upper or 2.5 <= upper
@@ -627,14 +665,14 @@ def sin(x: Union[Interval, float]) -> Interval:
     return Interval(*[
         (
             -1.0
-            if L <= 3 * _BIG_PI / 2 <= U
+            if L <= -_BIG_PI / 2 <= U or 3 * _BIG_PI / 2 <= U
             else min(sin_down(lower), sin_down(upper)),
             1.0
             if L <= _BIG_PI / 2 <= U or 5 * _BIG_PI / 2 <= U
             else max(sin_up(lower), sin_up(upper)),
         )
         for lower, upper in zip(iterator, iterator)
-        for L in [Decimal(lower) % (2 * _BIG_PI)]
+        for L in [sym_mod(Decimal(lower), _BIG_PI)]
         for U in [Decimal(upper) - Decimal(lower) + L]
     ])
 
@@ -716,38 +754,42 @@ def tan(x: Union[Interval, float]) -> Interval:
     intervals = []
     if isinstance(x, PiMultiple):
         for sub_interval in x.sub_intervals:
-            lower = sub_interval._endpoints[0] % 1
+            lower = sym_mod(sub_interval._endpoints[0], 0.5)
             upper = sub_interval._endpoints[1] - sub_interval._endpoints[0] + lower
-            if lower == 0.5 == upper:
+            if lower == upper in (-0.5, 0.5):
                 continue
-            if upper - lower >= 1.0:
+            if not upper - lower < 1.0:
                 return interval
-            if lower < 0.25:
+            _upper = sym_mod(upper, 0.5)
+            if abs(lower) <= 0.25:
                 c = cos_precise(Decimal(lower) * _BIG_PI)
                 s = sin_precise(Decimal(lower) * _BIG_PI)
-            elif lower < 0.75:
-                lower -= 0.5
-                s = -cos_precise(Decimal(lower) * _BIG_PI)
-                c = sin_precise(Decimal(lower) * _BIG_PI)
+                L = s / c
+            elif lower == -0.5:
+                L = Decimal("-Infinity")
+            elif lower == 0.5:
+                L = Decimal("Infinity")
             else:
-                lower -= 1.0
-                c = -cos_precise(Decimal(lower) * _BIG_PI)
-                s = sin_precise(Decimal(lower) * _BIG_PI)
-            L = s / c
-            if upper < 0.25:
-                c, s = cos_sin_precise(lower)
-            elif lower < 0.75:
-                s, c = cos_sin_precise(lower - 0.5)
-                s *= -1
+                s = -cos_precise(Decimal(lower - lower / abs(lower) * 0.5) * _BIG_PI)
+                c = sin_precise(Decimal(lower - lower / abs(lower) * 0.5) * _BIG_PI)
+                L = s / c
+            if abs(_upper) <= 0.25:
+                c = cos_precise(Decimal(_upper) * _BIG_PI)
+                s = sin_precise(Decimal(_upper) * _BIG_PI)
+                U = s / c
+            elif _upper == -0.5:
+                U = Decimal("-Infinity")
+            elif _upper == 0.5:
+                U = Decimal("Infinity")
             else:
-                c, s = cos_sin_precise(lower - 1.0)
-                c *= -1
-            U = s / c
-            if U - L > upper - lower:
-                intervals.append((decimal_down(L), decimal_up(U)))
-            else:
+                s = -cos_precise(Decimal(_upper - _upper / abs(_upper) * 0.5) * _BIG_PI)
+                c = sin_precise(Decimal(_upper - _upper / abs(_upper) * 0.5) * _BIG_PI)
+                U = s / c
+            if U - L < upper - lower:
                 intervals.append((-math.inf, decimal_up(U)))
                 intervals.append((decimal_down(L), math.inf))
+            else:
+                intervals.append((decimal_down(L), decimal_up(U)))
     else:
         iterator = iter(x.__as_interval__()._endpoints)
         for lower, upper in zip(iterator, iterator):
@@ -756,12 +798,12 @@ def tan(x: Union[Interval, float]) -> Interval:
             c, s = cos_sin_precise(lower)
             L = s / c
             c, s = cos_sin_precise(upper)
-            if U - L > upper - lower:
-                intervals.append((decimal_down(L), decimal_up(U)))
-            else:
             U = s / c
+            if U - L < Decimal(upper) - Decimal(lower):
                 intervals.append((-math.inf, decimal_up(U)))
                 intervals.append((decimal_down(L), math.inf))
+            else:
+                intervals.append((decimal_down(L), decimal_up(U)))
     return Interval(*intervals)
 
 def tan_down(x: float) -> float:
