@@ -50,6 +50,9 @@ class PiMultiple(Interval):
         else:
             return NotImplemented
 
+    def __as_interval__(self: Self) -> Interval:
+        return self.coefficients * _PI
+
     def __eq__(self: Self, other: Any) -> bool:
         if isinstance(other, PiMultiple) and type(self).__eq__ is type(other).__eq__:
             return self._endpoints == other._endpoints
@@ -110,26 +113,6 @@ class PiMultiple(Interval):
         else:
             return NotImplemented
 
-    def __radd__(self: Self, other: Union[Interval, float]) -> Interval:
-        if isinstance(other, Interval) and Interval.__radd__ is type(other).__radd__:
-            iterator = iter((other + self.__as_interval__())._endpoints)
-            return Interval(*zip(iterator, iterator))
-        elif isinstance(other, SupportsFloat):
-            iterator = iter((float(other) + self.__as_interval__())._endpoints)
-            return Interval(*zip(iterator, iterator))
-        else:
-            return NotImplemented
-
-    def __rand__(self: Self, other: Union[Interval, float]) -> Interval:
-        if isinstance(other, Interval) and Interval.__rand__ is type(other).__rand__:
-            iterator = iter((other & self.__as_interval__())._endpoints)
-            return Interval(*zip(iterator, iterator))
-        elif isinstance(other, SupportsFloat):
-            iterator = iter((float(other) & self.__as_interval__())._endpoints)
-            return Interval(*zip(iterator, iterator))
-        else:
-            return NotImplemented
-
     def __repr__(self: Self) -> str:
         if self == pi:
             return "pi"
@@ -137,58 +120,12 @@ class PiMultiple(Interval):
             return super().__repr__() + " * pi"
 
     def __rmul__(self: Self, other: Union[Interval, float]) -> Interval:
-        if isinstance(other, Interval) and Interval.__rmul__ is type(other).__rmul__:
+        if isinstance(other, Interval):
             iterator = iter((other * self.coefficients)._endpoints)
             return type(self)(*zip(iterator, iterator))
         elif isinstance(other, SupportsFloat):
             iterator = iter((float(other) * self.coefficients)._endpoints)
             return type(self)(*zip(iterator, iterator))
-        else:
-            return NotImplemented
-
-    def __rpow__(self: Self, other: Union[Interval, float], modulo: None = None) -> Interval:
-        if modulo is not None:
-            return NotImplemented
-            return type(self)(*zip(iterator, iterator))
-        elif isinstance(other, Interval) and Interval.__rpow__ is type(other).__rpow__:
-            iterator = iter((other ** self.__as_interval__())._endpoints)
-            return Interval(*zip(iterator, iterator))
-        elif isinstance(other, SupportsIndex):
-            iterator = iter((operator.index(other) ** self.__as_interval__())._endpoints)
-            return Interval(*zip(iterator, iterator))
-        elif isinstance(other, SupportsFloat):
-            iterator = iter((float(other) ** self.__as_interval__())._endpoints)
-            return Interval(*zip(iterator, iterator))
-        else:
-            return NotImplemented
-
-    def __rsub__(self: Self, other: Union[Interval, float]) -> Interval:
-        if isinstance(other, Interval) and Interval.__rsub__ is type(other).__rsub__:
-            iterator = iter((other - self.__as_interval__())._endpoints)
-            return Interval(*zip(iterator, iterator))
-        elif isinstance(other, SupportsFloat):
-            iterator = iter((float(other) - self.__as_interval__())._endpoints)
-            return Interval(*zip(iterator, iterator))
-        else:
-            return NotImplemented
-
-    def __rtruediv__(self: Self, other: Union[Interval, float]) -> Interval:
-        if isinstance(other, Interval) and Interval.__rtruediv__ is type(other).__rtruediv__:
-            iterator = iter((other / self.__as_interval__())._endpoints)
-            return Interval(*zip(iterator, iterator))
-        elif isinstance(other, SupportsFloat):
-            iterator = iter((float(other) / self.__as_interval__())._endpoints)
-            return Interval(*zip(iterator, iterator))
-        else:
-            return NotImplemented
-
-    def __rxor__(self: Self, other: Union[Interval, float]) -> Interval:
-        if isinstance(other, Interval) and Interval.__rxor__ is type(other).__rxor__:
-            iterator = iter((other ^ self.__as_interval__())._endpoints)
-            return Interval(*zip(iterator, iterator))
-        elif isinstance(other, SupportsFloat):
-            iterator = iter((float(other) ^ self.__as_interval__())._endpoints)
-            return Interval(*zip(iterator, iterator))
         else:
             return NotImplemented
 
@@ -225,9 +162,6 @@ class PiMultiple(Interval):
             return self.__as_interval__() ^ float(other)
         else:
             return NotImplemented
-
-    def __as_interval__(self: Self) -> Interval:
-        return self.coefficients * _PI
 
     @property
     def coefficients(self: Self) -> Interval:
