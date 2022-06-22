@@ -311,14 +311,18 @@ class Interval:
         else:
             return NotImplemented
 
-    def __radd__(self: Self, other: float, /) -> Interval:
-        if isinstance(other, SupportsFloat):
+    def __radd__(self: Self, other: Union[Interval, float], /) -> Interval:
+        if isinstance(other, Interval):
+            return other.__as_interval__() + self.__as_interval__()
+        elif isinstance(other, SupportsFloat):
             return self + other
         else:
             return NotImplemented
 
     def __rand__(self: Self, other: float, /) -> Interval:
-        if isinstance(other, SupportsFloat):
+        if isinstance(other, Interval):
+            return other.__as_interval__() & self.__as_interval__()
+        elif isinstance(other, SupportsFloat):
             return self & other
         else:
             return NotImplemented
@@ -337,40 +341,54 @@ class Interval:
             ])
             return f"interval[{bounds}]"
 
-    def __rmul__(self: Self, other: float, /) -> Interval:
-        if isinstance(other, SupportsFloat):
+    def __rmul__(self: Self, other: Union[Interval, float], /) -> Interval:
+        if isinstance(other, Interval):
+            return other.__as_interval__() * self.__as_interval__()
+        elif isinstance(other, SupportsFloat):
             return self * other
         else:
             return NotImplemented
 
-    def __ror__(self: Self, other: float, /) -> Interval:
-        if isinstance(other, SupportsFloat):
+    def __ror__(self: Self, other: Union[Interval, float], /) -> Interval:
+        if isinstance(other, Interval):
+            return other.__as_interval__() | self.__as_interval__()
+        elif isinstance(other, SupportsFloat):
             return self | other
         else:
             return NotImplemented
 
-    def __rpow__(self: Self, other: float, modulo: None = None, /) -> Interval:
-        if modulo is None and isinstance(other, SupportsFloat):
+    def __rpow__(self: Self, other: Union[Interval, float], modulo: None = None, /) -> Interval:
+        if modulo is None:
+            return NotImplemented
+        elif isinstance(other, Interval):
+            return other.__as_interval__() ** self.__as_interval__()
+        elif isinstance(other, SupportsFloat):
             other = float(other)
             return interval[other:other] ** self
         else:
             return NotImplemented
 
-    def __rsub__(self: Self, other: float, /) -> Interval:
-        if isinstance(other, SupportsFloat):
+    def __rsub__(self: Self, other: Union[Interval, float], /) -> Interval:
+        if isinstance(other, Interval):
+            return other.__as_interval__() - self.__as_interval__()
+        elif isinstance(other, SupportsFloat):
             return self * -1 + other
         else:
             return NotImplemented
 
-    def __rtruediv__(self: Self, other: float, /) -> Interval:
-        if isinstance(other, SupportsFloat):
+    def __rtruediv__(self: Self, other: Union[Interval, float], /) -> Interval:
+        if isinstance(other, Interval):
+            return other.__as_interval__() / self.__as_interval__()
+        elif isinstance(other, SupportsFloat):
             other = float(other)
             return interval[other:other] / self
         else:
             return NotImplemented
 
-    def __rxor__(self: Self, other: float, /) -> Interval:
-        if isinstance(other, SupportsFloat):
+    def __rxor__(self: Self, other: Union[Interval, float], /) -> Interval:
+        if isinstance(other, Interval):
+            return other.__as_interval__() ^ self.__as_interval__()
+        elif isinstance(other, SupportsFloat):
             return self | other
         else:
             return NotImplemented
