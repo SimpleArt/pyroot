@@ -51,7 +51,7 @@ def bisection(
             return x
     x = 0.5 * (_utils.sign(x1) + _utils.sign(x2))
     while (
-        _utils.is_between(x1, x, x2)
+        (x1 <= x <= x2 or x2 <= x <= x1)
         and not _utils.is_between(x1 / 8, x2, x1 * 8)
         and not (_utils.sign(x1) == _utils.sign(x2) and _utils.is_between(sqrt(abs(x1)), abs(x2), x1 * x1))
         and abs(x1 - x2) > abs_err + rel_err * abs(x)
@@ -70,6 +70,8 @@ def bisection(
         else:
             return x
         x = 0.5 * (_utils.sign(x1) + _utils.sign(x2))
+        if abs(x) == 0.5:
+            x = 0.0
     x_sign = 1 if x > 0 else -1
     x_abs = 1 if abs(x1) > 1 else -1
     while (

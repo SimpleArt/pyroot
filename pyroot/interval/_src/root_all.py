@@ -36,7 +36,7 @@ def bisect(
         x2 = interval.maximum
         x = 0.5 * (_utils.sign(x1) + _utils.sign(x2))
         while (
-            _utils.is_between(x1, x, x2)
+            x1 <= x <= x2
             and not _utils.is_between(x1 / 8, x2, x1 * 8)
             and not (_utils.sign(x1) == _utils.sign(x2) and _utils.is_between(sqrt(abs(x1)), abs(x2), x1 * x1))
             and x2 - x1 > abs_err + rel_err * abs(x)
@@ -59,6 +59,8 @@ def bisect(
             x1 = interval.minimum
             x2 = interval.maximum
             x = 0.5 * (_utils.sign(x1) + _utils.sign(x2))
+            if abs(x) == 0.5:
+                x = 0.0
         if interval is None:
             continue
         x_sign = 1 if x > 0 else -1
@@ -181,7 +183,7 @@ def newton(
             continue
         y = f(Interval((x, x)))
         previous_interval = interval
-        interval &= x - _utils.mean(y.minimum, y.maximum) / fprime(interval)
+        interval &= x - y / fprime(interval)
         if len(interval._endpoints) == 0:
             pass
         elif interval != previous_interval:
