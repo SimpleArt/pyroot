@@ -609,7 +609,7 @@ def exp_down(x: float) -> float:
     try:
         return decimal_down(Decimal(x).exp())
     except decimal.Overflow:
-        return math.inf
+        return math.nextafter(math.inf, x)
 
 def exp_up(x: float) -> float:
     try:
