@@ -44,7 +44,7 @@ def bisect(
             x1 <= x <= x2
             and not _utils.is_between(x1 / 8, x2, x1 * 8)
             and not (_utils.sign(x1) == _utils.sign(x2) and _utils.is_between(sqrt(abs(x1)), abs(x2), x1 * x1))
-            and x2 - x1 > abs_err + rel_err * abs(x)
+            and x2 - x1 > abs_err + rel_err * abs(interval).minimum
         ):
             if abs(x1 - x2) < 16 * (abs_tol + rel_tol * abs(x)):
                 x += 0.25 * (abs_err + rel_err * abs(x)) * _utils.sign((x1 - x) + (x2 - x))
@@ -73,7 +73,7 @@ def bisect(
         while (
             not _utils.is_between(x1 / 8, x2, x1 * 8)
             and not _utils.is_between(sqrt(abs(x1)), abs(x2), x1 * x1)
-            and x2 - x1 > abs_err + rel_err * abs(x)
+            and x2 - x1 > abs_err + rel_err * abs(interval).minimum
         ):
             x = x_sign * exp(x_abs * sqrt(log(abs(x1)) * log(abs(x2))))
             if abs(x1 - x2) < 16 * (abs_tol + rel_tol * abs(x)):
@@ -97,7 +97,7 @@ def bisect(
             continue
         while (
             not _utils.is_between(x1 / 8, x2, x1 * 8)
-            and x2 - x1 > abs_err + rel_err * abs(x)
+            and x2 - x1 > abs_err + rel_err * abs(interval).minimum
         ):
             x = x_sign * sqrt(abs(x1)) * sqrt(abs(x2))
             if abs(x1 - x2) < 16 * (abs_tol + rel_tol * abs(x)):
@@ -119,7 +119,7 @@ def bisect(
             x2 = interval.maximum
         if interval is None:
             continue
-        while x2 - x1 > abs_err + rel_err * abs(x):
+        while x2 - x1 > abs_err + rel_err * abs(interval).minimum:
             x = x1 + 0.5 * (x2 - x1)
             left = interval[:x]
             right = interval[x:]
@@ -138,7 +138,7 @@ def bisect(
             pass
         elif previous is None:
             previous = interval
-        elif interval.minimum - previous.maximum < abs_err + rel_err * abs(_utils.mean(interval.minimum, previous.maximum)):
+        elif interval.minimum - previous.maximum <= abs_err + rel_err * abs(Interval((interval.minimum, previous.maximum))).minimum:
             previous |= Interval((previous.maximum, interval.maximum))
         else:
             yield previous
@@ -186,12 +186,12 @@ def newton(
         interval = intervals.pop()
         size = interval.size
         x = _utils.mean(interval.minimum, interval.maximum)
-        if size > abs_err + rel_err * abs(x):
+        if size > abs_err + rel_err * abs(interval).minimum:
             pass
         elif previous is None:
             previous = interval
             continue
-        elif interval.minimum - previous.maximum < abs_err + rel_err * abs(_utils.mean(interval.minimum, previous.maximum)):
+        elif interval.minimum - previous.maximum <= abs_err + rel_err * abs(Interval((previous.maximum, interval.minimum))).minimum:
             previous |= Interval((previous.maximum, interval.maximum))
             continue
         else:
@@ -204,7 +204,7 @@ def newton(
         if len(interval._endpoints) == 0:
             pass
         elif interval != previous_interval:
-            if interval.size < abs_tol + rel_tol * abs(_utils.mean(interval.minimum, interval.maximum)):
+            if interval.size <= abs_tol + rel_tol * abs(interval).minimum:
                 abs_current = abs_err
                 rel_current = rel_err
             else:
