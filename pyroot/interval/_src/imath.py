@@ -745,9 +745,13 @@ def exp_down(x: float) -> float:
 
 def exp_up(x: float) -> float:
     try:
-        return decimal_up(Decimal(x).exp())
+        result = decimal_up(Decimal(x).exp())
     except decimal.Overflow:
         return math.inf
+    if result != 0.0 or math.isinf(x):
+        return result
+    else:
+        return math.nextafter(0.0, 1.0)
 
 def log(x: Union[Interval, float], base: Optional[Union[Interval, float]] = None) -> Interval:
     if not isinstance(x, Interval):
