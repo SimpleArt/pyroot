@@ -18,11 +18,8 @@ def bisect(
     rel_tol: float,
     /,
 ) -> Iterator[Interval]:
-    previous = None
     if 0 in f(interval[:math.nextafter(-math.inf, 0.0)]):
-        previous = interval[:math.nextafter(-math.inf, 0.0)]
-    else:
-        previous = None
+        yield interval[:math.nextafter(-math.inf, 0.0)]
     leftover = interval[math.nextafter(math.inf, 0.0):]
     interval = interval[math.nextafter(-math.inf, 0.0):math.nextafter(math.inf, 0.0)]
     if x is None:
@@ -134,31 +131,15 @@ def bisect(
                 break
             x1 = interval.minimum
             x2 = interval.maximum
-        if interval is None:
-            pass
-        elif previous is None:
-            previous = interval
-        elif interval.minimum - previous.maximum <= abs_err + rel_err * abs(Interval((interval.minimum, previous.maximum))).minimum:
-            previous |= Interval((previous.maximum, interval.maximum))
-        else:
-            yield previous
-            previous = interval
-    if 0.0 not in f(leftover):
-        pass
-    elif previous is None:
-        previous = leftover
-    elif leftover.minimum - previous.maximum <= abs_err + rel_err * abs(Interval((previous.maximum, leftover.minimum))).minimum:
-        previous |= leftover
-    else:
-        yield previous
-        previous = leftover
-    if previous is not None:
-        yield previous
+        if interval is not None:
+            yield interval
+    if 0.0 in f(leftover):
+        yield leftover
 
 def newton(
     f: Callable[[Interval], Interval],
-    interval: Interval,
     fprime: Callable[[Interval], Interval],
+    interval: Interval,
     x: Optional[float],
     abs_err: float,
     rel_err: float,
@@ -167,9 +148,7 @@ def newton(
     /,
 ) -> Iterator[Interval]:
     if 0 in f(interval[:math.nextafter(-math.inf, 0.0)]):
-        previous = interval[:math.nextafter(-math.inf, 0.0)]
-    else:
-        previous = None
+        yield interval[:math.nextafter(-math.inf, 0.0)]
     leftover = interval[math.nextafter(math.inf, 0.0):]
     interval = interval[math.nextafter(-math.inf, 0.0):math.nextafter(math.inf, 0.0)]
     if x is None:
@@ -185,19 +164,10 @@ def newton(
     while len(intervals) > 0:
         interval = intervals.pop()
         size = interval.size
+        if size <= abs_err + rel_err * abs(interval).minimum:
+            yield interval
+            continue
         x = _utils.mean(interval.minimum, interval.maximum)
-        if size > abs_err + rel_err * abs(interval).minimum:
-            pass
-        elif previous is None:
-            previous = interval
-            continue
-        elif interval.minimum - previous.maximum <= abs_err + rel_err * abs(Interval((previous.maximum, interval.minimum))).minimum:
-            previous |= Interval((previous.maximum, interval.maximum))
-            continue
-        else:
-            yield previous
-            previous = interval
-            continue
         y = f(Interval((x, x)))
         previous_interval = interval
         interval &= x - y / fprime(interval)
@@ -246,14 +216,5 @@ def newton(
             left = interval[:x]
             if 0 in f(left):
                 intervals.append(left)
-    if 0.0 not in f(leftover):
-        pass
-    elif previous is None:
-        previous = leftover
-    elif leftover.minimum - previous.maximum <= abs_err + rel_err * abs(Interval((previous.maximum, leftover.minimum))).minimum:
-        previous |= leftover
-    else:
-        yield previous
-        previous = leftover
-    if previous is not None:
-        yield previous
+    if 0.0 in f(leftover):
+        yield leftover
