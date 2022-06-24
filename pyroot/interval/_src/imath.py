@@ -460,6 +460,138 @@ def atan_up(x: float) -> float:
     else:
         return y
 
+def atan2(y: Union[Interval, float], x: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
+    if not isinstance(y, Interval):
+        y = float(y)
+        y = Interval((y, y))
+    intervals = []
+    result = PiMultiple()
+    for xi in x[0:].sub_intervals:
+        if xi.maximum == 0.0:
+            continue
+        for yi in y[0:].sub_intervals:
+            if math.isinf(yi.maximum) or xi.minimum == 0.0:
+                U = 0.5
+            elif yi.maximum == 0.0 or math.isinf(xi.minimum):
+                U = 0.0
+            elif (
+                math.frexp(yi.maximum)[0] == math.frexp(xi.minimum)[0]
+                and math.frexp(yi.maximum)[1] == math.frexp(xi.minimum)[1] - 2
+            ):
+                U = 0.25
+            else:
+                intervals.append((atan2_down(yi.minimum, xi.maximum), atan2_up(yi.maximum, xi.minimum)))
+                continue
+            if yi.minimum == 0.0 or math.isinf(xi.maximum):
+                L = 0.0
+            elif (
+                math.frexp(yi.minimum)[0] == math.frexp(xi.maximum)[0]
+                and math.frexp(yi.minimum)[1] == math.frexp(xi.maximum)[1] - 2
+            ):
+                L = 0.25
+            else:
+                intervals.append((atan2_down(yi.minimum, xi.maximum), atan2_up(yi.maximum, xi.minimum)))
+                continue
+            result |= Interval((L, U)) * pi
+        for yi in y[:0].sub_intervals:
+            if math.isinf(yi.minimum) or xi.minimum == 0.0:
+                L = -0.5
+            elif yi.minimum == 0.0 or math.isinf(xi.minimum):
+                L = -0.0
+            elif (
+                math.frexp(yi.minimum)[0] == -math.frexp(xi.minimum)[0]
+                and math.frexp(yi.minimum)[1] == math.frexp(xi.minimum)[1] - 2
+            ):
+                L = -0.25
+            else:
+                intervals.append((atan2_down(yi.maximum, xi.maximum), atan2_up(yi.minimum, xi.minimum)))
+                continue
+            if yi.maximum == 0.0 or math.isinf(xi.maximum):
+                U = -0.0
+            elif (
+                math.frexp(yi.maximum)[0] == -math.frexp(xi.maximum)[0]
+                and math.frexp(yi.maximum)[1] == math.frexp(xi.maximum)[1] - 2
+            ):
+                U = -0.25
+            else:
+                intervals.append((atan2_down(yi.maximum, xi.maximum), atan2_up(yi.minimum, xi.minimum)))
+                continue
+            result |= Interval((L, U)) * pi
+    for xi in x[:0].sub_intervals:
+        if xi.minimum == 0.0:
+            continue
+        for yi in y[0:].sub_intervals:
+            if math.isinf(yi.maximum) or xi.maximum == 0.0:
+                L = -0.5
+            elif yi.maximum == 0.0 or math.isinf(xi.maximum):
+                L = -0.0
+            elif (
+                math.frexp(yi.maximum)[0] == -math.frexp(xi.maximum)[0]
+                and math.frexp(yi.maximum)[1] == math.frexp(xi.maximum)[1] - 2
+            ):
+                L = -0.25
+            else:
+                intervals.append((atan2_down(yi.maximum, xi.maximum), atan2_up(yi.minimum, xi.minimum)))
+                continue
+            if yi.minimum == 0.0 or math.isinf(xi.minimum):
+                U = -0.0
+            elif (
+                math.frexp(yi.minimum)[0] == -math.frexp(xi.minimum)[0]
+                and math.frexp(yi.minimum)[1] == math.frexp(xi.minimum)[1] - 2
+            ):
+                U = -0.25
+            else:
+                intervals.append((atan2_down(yi.maximum, xi.maximum), atan2_up(yi.minimum, xi.minimum)))
+                continue
+            result |= Interval((L, U)) * pi
+        for yi in y[:0].sub_intervals:
+            if math.isinf(yi.minimum) or xi.maximum == 0.0:
+                U = 0.5
+            elif yi.minimum == 0.0 or math.isinf(xi.maximum):
+                U = 0.0
+            elif (
+                math.frexp(yi.minimum)[0] == math.frexp(xi.maximum)[0]
+                and math.frexp(yi.minimum)[1] == math.frexp(xi.maximum)[1] - 2
+            ):
+                U = 0.25
+            else:
+                intervals.append((atan2_down(yi.maximum, xi.minimum), atan2_up(yi.minimum, xi.maximum)))
+                continue
+            if yi.maximum == 0.0 or math.isinf(xi.minimum):
+                L = 0.0
+            elif (
+                math.frexp(yi.maximum)[0] == math.frexp(xi.minimum)[0]
+                and math.frexp(yi.maximum)[1] == math.frexp(xi.minimum)[1] - 2
+            ):
+                L = 0.25
+            else:
+                intervals.append((atan2_down(yi.maximum, xi.minimum), atan2_up(yi.minimum, xi.maximum)))
+                continue
+            result |= Interval((L, U)) * pi
+    if len(intervals) > 0:
+        return result | Interval(*intervals)
+    else:
+        return result
+
+def atan2_down(y: float, x: float) -> float:
+    z = math.atan2(y, x)
+    c, s = cos_sin_precise(z)
+    if s / c > Decimal(y) / Decimal(x):
+        return math.nextafter(z, -math.inf)
+    else:
+        return z
+
+def atan2_up(y: float, x: float) -> float:
+    z = math.atan2(y, x)
+    c, s = cos_sin_precise(z)
+    if s / c < Decimal(y) / Decimal(x):
+        return math.nextafter(z, math.inf)
+    else:
+        return z
+
 def atanh(x: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
         x = float(x)
