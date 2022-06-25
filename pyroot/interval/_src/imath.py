@@ -17,6 +17,9 @@ _BIG_PI = Decimal(
     "30381964428810975665933446128475648233786783165271201909145648566"
     "923460348610454326648213393607260249141273724587006606"
 )
+_BIG_EULER_MASCHERONI = Decimal(
+    "0.57721566490153286060651209008240243104215933593992"
+)
 
 Self = TypeVar("Self", bound="PiMultiple")
 
@@ -790,6 +793,99 @@ def degrees(x: Union[Interval, float]) -> Interval:
                 for xi in x[0:].sub_intervals
             ],
         )
+
+def digamma_precise(x: float) -> Decimal:
+    with localcontext() as ctx:
+        ctx.prec += 20
+        d = Decimal(x)
+        if d < 10:
+            d += int(10 - d)
+        else:
+            s = (
+                d.ln()
+                - 1 / (2 * d)
+                - 1 / (12 * d ** 2)
+                + 1 / (120 * d ** 4)
+                - 1 / (252 * d ** 6)
+            )
+            if s == s + 1 / (240 * d ** 8):
+                return s
+            d -= int(d - 10)
+        s = -_BIG_EULER_MASCHERONI
+        i = 1
+        b = d
+        while s != s + b / i:
+            s += b / i
+            b *= (i - d) / (i + 1)
+            i += 1
+        if x < 10:
+            for i in range(int(10 - Decimal(x)) + 1):
+                s -= 1 / (d - i)
+        else:
+            for i in range(1, int(Decimal(x) - 10)):
+                s += 1 / (d + i)
+        return s
+
+def digamma(x: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
+    intervals = []
+    iterator = iter(x.__as_interval__()._endpoints)
+    for lower, upper in zip(iterator, iterator):
+        if lower > 0:
+            intervals.append((digamma_down(lower), digamma_up(upper)))
+            continue
+        elif upper - lower >= 1.0:
+            return Interval((-math.inf, math.inf))
+        elif lower.is_integer():
+            L = -math.inf
+        else:
+            L = digamma_down(lower)
+        if upper.is_integer():
+            U = math.inf
+        else:
+            U = digamma_up(upper)
+        if lower - upper - ((-upper) % 1.0) < -1.0:
+            intervals.append((-math.inf, U))
+            intervals.append((L, math.inf))
+        else:
+            intervals.append((L, U))
+    return Interval(*intervals)
+
+def digamma_down(x: float) -> float:
+    if math.isinf(x):
+        return x
+    elif x < 0.5 and x.is_integer():
+        return -math.inf
+    elif x >= 0.5:
+        return decimal_down(digamma_precise(x))
+    with localcontext() as ctx:
+        ctx.prec += 10
+        if x < 0.0:
+            d = -((-x) % 1.0)
+            if d <= -0.5:
+                d = x % 1.0
+        else:
+            d = x
+        c, s = cos_sin_precise(_BIG_PI * Decimal(d))
+        return decimal_down(digamma_precise(1 - x) - _BIG_PI * c / s)
+
+def digamma_up(x: float) -> float:
+    if math.isinf(x) or x < 0.5 and x.is_integer():
+        return math.inf
+    elif x >= 0.5:
+        return decimal_up(digamma_precise(x))
+    with localcontext() as ctx:
+        ctx.prec += 10
+        if x < 0.0:
+            d = -((-x) % 1.0)
+            if d <= -0.5:
+                d = x % 1.0
+        else:
+            d = x
+        c, s = cos_sin_precise(_BIG_PI * Decimal(d))
+        return decimal_up(digamma_precise(1 - x) - _BIG_PI * c / s)
 
 def dist(p: Iterable[Union[Interval, float]], q: Iterable[Union[Interval, float]], /) -> Interval:
     dists = []
