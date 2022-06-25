@@ -504,6 +504,8 @@ def atan2(y: Union[Interval, float], x: Union[Interval, float]) -> Interval:
     if not isinstance(y, Interval):
         y = float(y)
         y = Interval((y, y))
+    x = x.__as_interval__()
+    y = y.__as_interval__()
     intervals = []
     result = PiMultiple()
     for xi in x[0:].sub_intervals:
