@@ -807,8 +807,11 @@ def digamma_precise(x: float) -> Decimal:
                 - 1 / (12 * d ** 2)
                 + 1 / (120 * d ** 4)
                 - 1 / (252 * d ** 6)
+                + 1 / (240 * d ** 8)
+                - 1 / (132 * d ** 10)
+                + 691 / (32760 * d ** 12)
             )
-            if s == s + 1 / (240 * d ** 8):
+            if s == s - 1 / (120 * d ** 14):
                 return s
             d -= int(d - 10)
         s = -_BIG_EULER_MASCHERONI
