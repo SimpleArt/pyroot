@@ -907,6 +907,12 @@ def log_up(x: float, base: Optional[float] = None) -> float:
             return -math.inf if base > 1.0 else math.inf
         return decimal_up(Decimal(x).ln() / Decimal(base).ln())
 
+def pow(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
+    return x ** y
+
 def radians(x: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
         x = float(x)
