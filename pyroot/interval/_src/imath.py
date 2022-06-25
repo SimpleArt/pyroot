@@ -1,6 +1,7 @@
 import decimal
 import math
 import operator
+from collections.abc import Iterable
 from decimal import Decimal, localcontext
 from typing import Any, Optional, SupportsFloat, SupportsIndex, TypeVar, Union, overload
 
@@ -789,6 +790,23 @@ def degrees(x: Union[Interval, float]) -> Interval:
                 for xi in x[0:].sub_intervals
             ],
         )
+
+def dist(p: Iterable[Union[Interval, float]], q: Iterable[Union[Interval, float]], /) -> Interval:
+    dists = []
+    for x, y in zip(p, q):
+        if not isinstance(x, Interval):
+            x = float(x)
+            x = Interval((x, x))
+        if len(y._endpoints) == 0:
+            return Interval()
+        if not isinstance(y, Interval):
+            y = float(y)
+            y = Interval((y, y))
+        if len(y._endpoints) == 0:
+            return Interval()
+        dists.append(abs(x - y))
+    maximum = max(d.maximum for d in dists)
+    return maximum * sqrt(sum((d / maximum) ** 2 for d in dists))
 
 def erf_small_precise(x: float) -> Decimal:
     assert abs(x) <= 1.5
