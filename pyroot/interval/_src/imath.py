@@ -795,7 +795,10 @@ def exp(x: Union[Interval, float]) -> Interval:
         x = float(x)
         x = Interval((x, x))
     iterator = iter(x.__as_interval__()._endpoints)
-    return Interval(*[(exp_down(lower), exp_up(upper)) for lower, upper in zip(iterator, iterator)])
+    return Interval(*[
+        (exp_down(lower), exp_up(upper))
+        for lower, upper in zip(iterator, iterator)
+    ])
 
 def exp_down(x: float) -> float:
     try:
@@ -812,6 +815,41 @@ def exp_up(x: float) -> float:
         return result
     else:
         return math.nextafter(0.0, 1.0)
+
+def expm1_precise(x: float) -> Decimal:
+    with localcontext() as ctx:
+        ctx.prec += 5
+        d = Decimal(x)
+        if abs(d) < 1e-4:
+            return d * (1 + d / 2 * (1 + d / 3 * (1 + d / 4)))
+        else:
+            return d.exp() - 1
+
+def expm1(x: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
+    iterator = iter(x.__as_interval__()._endpoints)
+    return Interval(*[
+        (expm1_down(lower), expm1_up(upper))
+        for lower, upper in zip(iterator, iterator)
+    ])
+
+def expm1_down(x: float) -> float:
+    try:
+        return decimal_down(expm1_precise(x))
+    except decimal.Overflow:
+        return math.nextafter(math.inf, x)
+
+def expm1_up(x: float) -> float:
+    try:
+        result = decimal_up(expm1_precise(x))
+    except decimal.Overflow:
+        return math.inf
+    if result != -1.0 or math.isinf(x):
+        return result
+    else:
+        return math.nextafter(-1.0, 0.0)
 
 def log(x: Union[Interval, float], base: Optional[Union[Interval, float]] = None) -> Interval:
     if not isinstance(x, Interval):
