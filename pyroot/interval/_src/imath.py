@@ -72,7 +72,44 @@ class PiMultiple(Interval):
 
     def __mul__(self: Self, other: Union[Interval, float]) -> Interval:
         if isinstance(other, PiMultiple) and type(self).__mul__ is type(other).__mul__:
-            return self.__as_interval__() * (other.coefficients * _PI)
+            with localcontext() as ctx:
+                ctx.prec += 5
+                pi_squared = _BIG_PI ** 2
+                return Interval(
+                    *[
+                        (
+                            decimal_down(pi_squared * Decimal(xi.maximum) * Decimal(yi.minimum)),
+                            decimal_up(pi_squared * Decimal(xi.minimum) * Decimal(yi.maximum)),
+                        )
+                        for xi in x[0:].sub_intervals
+                        for yi in y[:0].sub_intervals
+                    ],
+                    *[
+                        (
+                            decimal_down(pi_squared * Decimal(xi.minimum) * Decimal(yi.maximum)),
+                            decimal_up(pi_squared * Decimal(xi.maximum) * Decimal(yi.minimum)),
+                        )
+                        for xi in x[:0].sub_intervals
+                        for yi in y[0:].sub_intervals
+                    ],
+                    *[
+                        (
+                            decimal_down(pi_squared * Decimal(xi.minimum) * Decimal(yi.minimum)),
+                            decimal_up(pi_squared * Decimal(xi.maximum) * Decimal(yi.maximum)),
+                        )
+                        for xi in x[0:].sub_intervals
+                        for yi in y[0:].sub_intervals
+                    ],
+                    *[
+                        (
+                            decimal_down(pi_squared * Decimal(xi.maximum) * Decimal(yi.maximum)),
+                            decimal_up(pi_squared * Decimal(xi.minimum) * Decimal(yi.minimum)),
+                        )
+                        for xi in x[:0].sub_intervals
+                        for yi in y[:0].sub_intervals
+                    ],
+                )
+            return self.__as_interval__() * other.__as_interval__()
         elif isinstance(other, Interval) and Interval.__mul__ is type(other).__mul__:
             iterator = iter((self.coefficients * other)._endpoints)
             return type(self)(*zip(iterator, iterator))
