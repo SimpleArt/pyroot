@@ -223,6 +223,7 @@ class PiMultiple(Interval):
 
 
 pi = PiMultiple((1.0, 1.0))
+tau = 2 * pi
 
 SPECIAL_ANGLES = {
     -1.0: (1, 1, -1, 2),
@@ -769,6 +770,26 @@ def cosh_up(x: float) -> float:
     except decimal.Overflow:
         return math.inf
 
+def degrees(x: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
+    elif isinstance(x, PiMultiple):
+        return x * 180 / pi
+    with localcontext() as ctx:
+        ctx.prec += 2
+        coef = 180 / _BIG_PI
+        return Interval(
+            *[
+                (decimal_down(coef * Decimal(xi.maximum)), decimal_up(coef * Decimal(xi.minimum)))
+                for xi in x[:0].sub_intervals
+            ],
+            *[
+                (decimal_down(coef * Decimal(xi.minimum)), decimal_up(coef * Decimal(xi.maximum)))
+                for xi in x[0:].sub_intervals
+            ],
+        )
+
 def exp(x: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
         x = float(x)
@@ -847,6 +868,12 @@ def log_up(x: float, base: Optional[float] = None) -> float:
         if x <= 0.0:
             return -math.inf if base > 1.0 else math.inf
         return decimal_up(Decimal(x).ln() / Decimal(base).ln())
+
+def radians(x: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
+    return x / 180 * pi
 
 def sin(x: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
