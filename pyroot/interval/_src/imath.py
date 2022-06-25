@@ -790,6 +790,115 @@ def degrees(x: Union[Interval, float]) -> Interval:
             ],
         )
 
+def erf_small_precise(x: float) -> Decimal:
+    assert abs(x) <= 1.5
+    with localcontext() as ctx:
+        ctx.prec += 5
+        d = Decimal(x)
+        d2 = d ** 2
+        acc = 0
+        fk = Decimal("25.5")
+        for i in range(25):
+            acc = 2 + d2 * acc / fk
+            fk -= 1
+        return acc * d * (-d2).exp() / _BIG_PI.sqrt()
+
+def erfc_precise(x: float) -> Decimal:
+    assert 1.5 < x < 30.0
+    with localcontext() as ctx:
+        ctx.prec += 5
+        d = Decimal(x)
+        d2 = d ** 2
+        a = 0
+        da = Decimal("0.5")
+        p = 1
+        p_last = 0
+        q = da + d2
+        q_last = 1
+        for i in range(50):
+            a += da
+            da += 2
+            b = da + d2
+            p_last, p = p, b * p - a * p_last
+            q_last, q = q, b * q - a * q_last
+        return p / q * d * (-d2).exp() / _BIG_PI.sqrt()
+
+def erf(x: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
+    iterator = iter(x.__as_interval__()._endpoints)
+    return Interval(*[
+        (erf_down(lower), erf_up(upper))
+        for lower, upper in zip(iterator, iterator)
+    ])
+
+def erf_down(x: float) -> float:
+    if abs(x) <= 1.5:
+        return decimal_down(erf_small_precise(x))
+    elif 1.5 < x < 30.0:
+        return decimal_down(1 - erfc_precise(x))
+    elif -30.0 < x < -1.5:
+        return decimal_down(erfc_precise(-x) - 1)
+    elif x < 0.0:
+        return -1.0
+    elif math.isinf(x):
+        return 1.0
+    else:
+        return math.nextafter(1.0, 0.0)
+
+def erf_up(x: float) -> float:
+    if abs(x) <= 1.5:
+        return decimal_up(erf_small_precise(x))
+    elif 1.5 < x < 30.0:
+        return decimal_up(1 - erfc_precise(x))
+    elif -30.0 < x < -1.5:
+        return decimal_up(erfc_precise(-x) - 1)
+    elif x > 0.0:
+        return 1.0
+    elif math.isinf(x):
+        return -1.0
+    else:
+        return math.nextafter(-1.0, 0.0)
+
+def erfc(x: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
+    iterator = iter(x.__as_interval__()._endpoints)
+    return Interval(*[
+        (erfc_down(upper), erfc_up(lower))
+        for lower, upper in zip(iterator, iterator)
+    ])
+
+def erfc_down(x: float) -> float:
+    if abs(x) <= 1.5:
+        return decimal_down(1 - erf_small_precise(x))
+    elif 1.5 < x < 30.0:
+        return decimal_down(erfc_precise(x))
+    elif -30.0 < x < -1.5:
+        return decimal_down(erfc_precise(-x) + 2)
+    elif x > 0.0:
+        return 0.0
+    elif math.isinf(x):
+        return 2.0
+    else:
+        return math.nextafter(2.0, 0.0)
+
+def erfc_up(x: float) -> float:
+    if abs(x) <= 1.5:
+        return decimal_up(1 - erf_small_precise(x))
+    elif 1.5 < x < 30.0:
+        return decimal_up(erfc_precise(x))
+    elif -30.0 < x < -1.5:
+        return decimal_up(erfc_precise(-x) + 2)
+    elif x < 0.0:
+        return 2.0
+    elif math.isinf(x):
+        return 0.0
+    else:
+        return math.nextafter(0.0, 1.0)
+
 def exp(x: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
         x = float(x)
