@@ -2,7 +2,7 @@ import math
 import random
 import sys
 from itertools import islice
-from math import cos, exp, inf, isnan, log, pi, sqrt
+from math import cos, exp, inf, isinf, isnan, log, pi, sqrt
 from typing import Any, Callable, Iterable, Iterator, Literal, Optional, Sequence, SupportsFloat, TypeVar, Union, List as list, Tuple as tuple
 
 FLOAT_EPSILON: float = 2 * sys.float_info.epsilon
