@@ -10,6 +10,9 @@ from .interval import Interval, interval
 
 e = interval[math.e:math.nextafter(math.e, math.inf)]
 _PI = interval[math.pi:math.nextafter(math.pi, math.inf)]
+_BIG_E = Decimal(
+    "2.71828182845904523536028747"
+)
 _BIG_PI = Decimal(
     "3.141592653589793238462643383279502884197169399375105820974944592"
     "30781640628620899862803482534211706798214808651328230664709384460"
