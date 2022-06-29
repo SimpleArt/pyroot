@@ -110,24 +110,25 @@ def digamma_precise(x: float) -> Decimal:
             assert False, "digamma_precise should not accept non-positive integers"
         else:
             d = 1 - Decimal(x)
-        result = None
         if d >= 1e4:
-            try:
-                s = (
-                    d.ln()
-                    - 1 / (2 * d)
-                    - 1 / (12 * d ** 2)
-                    + 1 / (120 * d ** 4)
-                    - 1 / (252 * d ** 6)
-                    + 1 / (240 * d ** 8)
-                    - 1 / (132 * d ** 10)
-                    + 691 / (32760 * d ** 12)
-                )
-                if s == s - 1 / (12 * d ** 14):
-                    result = s
-            except decimal.Overflow:
-                result = math.inf
-        if result is None:
+            d2 = d ** -2
+            result = -d2 / 12
+            result += Decimal(691) / 32760
+            result *= d2
+            result -= Decimal(1) / 132
+            result *= d2
+            result += Decimal(1) / 240
+            result *= d2
+            result -= Decimal(1) / 252
+            result *= d2
+            result += Decimal(1) / 120
+            result *= d2
+            result -= Decimal(1) / 12
+            result /= d
+            result -= Decimal("0.5")
+            result /= d
+            result += d.ln()
+        else:
             d1 = d % 1
             dgh = d1 + G + Decimal("0.5")
             result = (
