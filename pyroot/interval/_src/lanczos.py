@@ -176,19 +176,25 @@ def gamma_precise(x: float) -> Decimal:
             d = 1 - Decimal(x)
         result = None
         if d >= 10.0:
+            d2 = d ** -2
+            s = d2 / 156
+            s -= Decimal(691) / 360360
+            s *= d2
+            s += Decimal(1) / 1188
+            s *= d2
+            s -= Decimal(1) / 1680
+            s *= d2
+            s += Decimal(1) / 1260
+            s *= d2
+            s -= Decimal(1) / 360
+            s *= d2
+            s += Decimal(1) / 12
+            s /= d
             try:
-                result = (2 * _BIG_PI / d).sqrt() * (d / _BIG_E) ** d * (
-                    1 / (156 * d ** 13)
-                    - 691 / (360360 * d ** 11)
-                    + 1 / (1188 * d ** 9)
-                    - 1 / (1680 * d ** 7)
-                    + 1 / (1260 * d ** 5)
-                    - 1 / (360 * d ** 3)
-                    + 1 / (12 * d)
-                ).exp()
+                result = (2 * _BIG_PI / d).sqrt() * (d / _BIG_E) ** d * s.exp()
             except decimal.Overflow:
                 result = Decimal("Infinity")
-        if result is None:
+        else:
             d1 = d % 1
             result = ((d1 + G + Decimal("0.5")) / E) ** (d1 + Decimal("0.5")) * gamma_lanczos(d1 + 1)
             dx = 1
@@ -229,14 +235,22 @@ def lgamma_precise(x: float) -> Decimal:
         else:
             d = 1 - Decimal(x)
         if x >= 10.0:
+            d2 = d ** -2
+            s = d2 / 156
+            s -= Decimal(691) / 360360
+            s *= d2
+            s += Decimal(1) / 1188
+            s *= d2
+            s -= Decimal(1) / 1680
+            s *= d2
+            s += Decimal(1) / 1260
+            s *= d2
+            s -= Decimal(1) / 360
+            s *= d2
+            s += Decimal(1) / 12
+            s /= d
             result = (
-                1 / (156 * d ** 13)
-                - 691 / (360360 * d ** 11)
-                + 1 / (1188 * d ** 9)
-                - 1 / (1680 * d ** 7)
-                + 1 / (1260 * d ** 5)
-                - 1 / (360 * d ** 3)
-                + 1 / (12 * d)
+                s
                 + (2 * _BIG_PI).ln() / 2
                 - d.ln() / 2
                 + d * (d.ln() - 1)
