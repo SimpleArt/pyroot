@@ -7,6 +7,7 @@ from typing import Any, Optional, SupportsFloat, SupportsIndex, TypeVar, Union, 
 
 from .fpu_rounding import *
 from .interval import Interval, interval
+from .lanczos import digamma_precise, gamma_precise, lgamma_precise
 
 e = interval[math.e:math.nextafter(math.e, math.inf)]
 _PI = interval[math.pi:math.nextafter(math.pi, math.inf)]
@@ -85,32 +86,32 @@ class PiMultiple(Interval):
                 return Interval(
                     *[
                         (
-                            decimal_down(pi_squared * Decimal(xi.maximum) * Decimal(yi.minimum)),
-                            decimal_up(pi_squared * Decimal(xi.minimum) * Decimal(yi.maximum)),
+                            float_down(pi_squared * Decimal(xi.maximum) * Decimal(yi.minimum)),
+                            float_up(pi_squared * Decimal(xi.minimum) * Decimal(yi.maximum)),
                         )
                         for xi in x[0:].sub_intervals
                         for yi in y[:0].sub_intervals
                     ],
                     *[
                         (
-                            decimal_down(pi_squared * Decimal(xi.minimum) * Decimal(yi.maximum)),
-                            decimal_up(pi_squared * Decimal(xi.maximum) * Decimal(yi.minimum)),
+                            float_down(pi_squared * Decimal(xi.minimum) * Decimal(yi.maximum)),
+                            float_up(pi_squared * Decimal(xi.maximum) * Decimal(yi.minimum)),
                         )
                         for xi in x[:0].sub_intervals
                         for yi in y[0:].sub_intervals
                     ],
                     *[
                         (
-                            decimal_down(pi_squared * Decimal(xi.minimum) * Decimal(yi.minimum)),
-                            decimal_up(pi_squared * Decimal(xi.maximum) * Decimal(yi.maximum)),
+                            float_down(pi_squared * Decimal(xi.minimum) * Decimal(yi.minimum)),
+                            float_up(pi_squared * Decimal(xi.maximum) * Decimal(yi.maximum)),
                         )
                         for xi in x[0:].sub_intervals
                         for yi in y[0:].sub_intervals
                     ],
                     *[
                         (
-                            decimal_down(pi_squared * Decimal(xi.maximum) * Decimal(yi.maximum)),
-                            decimal_up(pi_squared * Decimal(xi.minimum) * Decimal(yi.minimum)),
+                            float_down(pi_squared * Decimal(xi.maximum) * Decimal(yi.maximum)),
+                            float_up(pi_squared * Decimal(xi.minimum) * Decimal(yi.minimum)),
                         )
                         for xi in x[:0].sub_intervals
                         for yi in y[:0].sub_intervals
@@ -257,14 +258,14 @@ def sym_mod(x, modulo):
             x += 2 * modulo
     return x
 
-def decimal_down(x: Decimal) -> float:
+def float_down(x: SupportsFloat) -> float:
     y = float(x)
     if x < y:
         return math.nextafter(y, -math.inf)
     else:
         return y
 
-def decimal_up(x: Decimal) -> float:
+def float_up(x: SupportsFloat) -> float:
     y = float(x)
     if x > y:
         return math.nextafter(y, math.inf)
@@ -524,20 +525,14 @@ def atan2(y: Union[Interval, float], x: Union[Interval, float]) -> Interval:
                 U = 0.5
             elif yi.maximum == 0.0 or math.isinf(xi.minimum):
                 U = 0.0
-            elif (
-                math.frexp(yi.maximum)[0] == math.frexp(xi.minimum)[0]
-                and math.frexp(yi.maximum)[1] == math.frexp(xi.minimum)[1] - 2
-            ):
+            elif yi.maximum == xi.minimum * 4 or yi.maximum / 4 == xi.minimum:
                 U = 0.25
             else:
                 intervals.append((atan2_down(yi.minimum, xi.maximum), atan2_up(yi.maximum, xi.minimum)))
                 continue
             if yi.minimum == 0.0 or math.isinf(xi.maximum):
                 L = 0.0
-            elif (
-                math.frexp(yi.minimum)[0] == math.frexp(xi.maximum)[0]
-                and math.frexp(yi.minimum)[1] == math.frexp(xi.maximum)[1] - 2
-            ):
+            elif yi.minimum == xi.maximum * 4 or yi.minimum / 4 == xi.maximum:
                 L = 0.25
             else:
                 intervals.append((atan2_down(yi.minimum, xi.maximum), atan2_up(yi.maximum, xi.minimum)))
@@ -548,20 +543,14 @@ def atan2(y: Union[Interval, float], x: Union[Interval, float]) -> Interval:
                 L = -0.5
             elif yi.minimum == 0.0 or math.isinf(xi.minimum):
                 L = -0.0
-            elif (
-                math.frexp(yi.minimum)[0] == -math.frexp(xi.minimum)[0]
-                and math.frexp(yi.minimum)[1] == math.frexp(xi.minimum)[1] - 2
-            ):
+            elif yi.minimum == xi.minimum * 4 or yi.minimum / 4 == xi.minimum:
                 L = -0.25
             else:
                 intervals.append((atan2_down(yi.maximum, xi.maximum), atan2_up(yi.minimum, xi.minimum)))
                 continue
             if yi.maximum == 0.0 or math.isinf(xi.maximum):
                 U = -0.0
-            elif (
-                math.frexp(yi.maximum)[0] == -math.frexp(xi.maximum)[0]
-                and math.frexp(yi.maximum)[1] == math.frexp(xi.maximum)[1] - 2
-            ):
+            elif yi.maximum == xi.maximum * 4 or yi.maximum / 4 == xi.maximum:
                 U = -0.25
             else:
                 intervals.append((atan2_down(yi.maximum, xi.maximum), atan2_up(yi.minimum, xi.minimum)))
@@ -575,20 +564,14 @@ def atan2(y: Union[Interval, float], x: Union[Interval, float]) -> Interval:
                 L = -0.5
             elif yi.maximum == 0.0 or math.isinf(xi.maximum):
                 L = -0.0
-            elif (
-                math.frexp(yi.maximum)[0] == -math.frexp(xi.maximum)[0]
-                and math.frexp(yi.maximum)[1] == math.frexp(xi.maximum)[1] - 2
-            ):
+            elif yi.maximum == xi.maximum * 4 or yi.maximum / 4 == xi.maximum:
                 L = -0.25
             else:
                 intervals.append((atan2_down(yi.maximum, xi.maximum), atan2_up(yi.minimum, xi.minimum)))
                 continue
             if yi.minimum == 0.0 or math.isinf(xi.minimum):
                 U = -0.0
-            elif (
-                math.frexp(yi.minimum)[0] == -math.frexp(xi.minimum)[0]
-                and math.frexp(yi.minimum)[1] == math.frexp(xi.minimum)[1] - 2
-            ):
+            elif yi.minimum == xi.minimum * 4 or yi.minimum / 4 == xi.minimum:
                 U = -0.25
             else:
                 intervals.append((atan2_down(yi.maximum, xi.maximum), atan2_up(yi.minimum, xi.minimum)))
@@ -599,20 +582,14 @@ def atan2(y: Union[Interval, float], x: Union[Interval, float]) -> Interval:
                 U = 0.5
             elif yi.minimum == 0.0 or math.isinf(xi.maximum):
                 U = 0.0
-            elif (
-                math.frexp(yi.minimum)[0] == math.frexp(xi.maximum)[0]
-                and math.frexp(yi.minimum)[1] == math.frexp(xi.maximum)[1] - 2
-            ):
+            elif yi.minimum == xi.maximum * 4 or yi.minimum / 4 == xi.maximum:
                 U = 0.25
             else:
                 intervals.append((atan2_down(yi.maximum, xi.minimum), atan2_up(yi.minimum, xi.maximum)))
                 continue
             if yi.maximum == 0.0 or math.isinf(xi.minimum):
                 L = 0.0
-            elif (
-                math.frexp(yi.maximum)[0] == math.frexp(xi.minimum)[0]
-                and math.frexp(yi.maximum)[1] == math.frexp(xi.minimum)[1] - 2
-            ):
+            elif yi.maximum == xi.minimum * 4 or yi.maximum / 4 == xi.minimum:
                 L = 0.25
             else:
                 intervals.append((atan2_down(yi.maximum, xi.minimum), atan2_up(yi.minimum, xi.maximum)))
@@ -708,10 +685,10 @@ def cos(x: Union[Interval, float]) -> Interval:
             intervals.append((
                 -1.0
                 if not -1.0 < lower <= upper < 1.0
-                else decimal_down(min(L, U)),
+                else float_down(min(L, U)),
                 1.0
                 if lower <= 0.0 <= upper or 2.0 <= upper
-                else decimal_up(max(L, U)),
+                else float_up(max(L, U)),
             ))
         return Interval(*intervals)
     x = abs(x.__as_interval__())
@@ -735,10 +712,10 @@ def cos(x: Union[Interval, float]) -> Interval:
     ])
 
 def cos_down(x: float) -> float:
-    return decimal_down(cos_sin_precise(x)[0])
+    return float_down(cos_sin_precise(x)[0])
 
 def cos_up(x: float) -> float:
-    return decimal_up(cos_sin_precise(x)[0])
+    return float_up(cos_sin_precise(x)[0])
 
 def cosh(x: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
@@ -758,22 +735,22 @@ def cosh(x: Union[Interval, float]) -> Interval:
 def cosh_down(x: float) -> float:
     x = Decimal(x)
     try:
-        return decimal_down((x.exp() + (-x).exp()) / 2)
+        return float_down((x.exp() + (-x).exp()) / 2)
     except decimal.Overflow:
         pass
     try:
-        return decimal_down((x - Decimal(2).ln()).exp() + (-x - Decimal(2).ln()).exp())
+        return float_down((x - Decimal(2).ln()).exp() + (-x - Decimal(2).ln()).exp())
     except decimal.Overflow:
         return math.inf
 
 def cosh_up(x: float) -> float:
     x = Decimal(x)
     try:
-        return decimal_up((x.exp() + (-x).exp()) / 2)
+        return float_up((x.exp() + (-x).exp()) / 2)
     except decimal.Overflow:
         pass
     try:
-        return decimal_up((x - Decimal(2).ln()).exp() + (-x - Decimal(2).ln()).exp())
+        return float_up((x - Decimal(2).ln()).exp() + (-x - Decimal(2).ln()).exp())
     except decimal.Overflow:
         return math.inf
 
@@ -788,49 +765,14 @@ def degrees(x: Union[Interval, float]) -> Interval:
         coef = 180 / _BIG_PI
         return Interval(
             *[
-                (decimal_down(coef * Decimal(xi.maximum)), decimal_up(coef * Decimal(xi.minimum)))
+                (float_down(coef * Decimal(xi.maximum)), float_up(coef * Decimal(xi.minimum)))
                 for xi in x[:0].sub_intervals
             ],
             *[
-                (decimal_down(coef * Decimal(xi.minimum)), decimal_up(coef * Decimal(xi.maximum)))
+                (float_down(coef * Decimal(xi.minimum)), float_up(coef * Decimal(xi.maximum)))
                 for xi in x[0:].sub_intervals
             ],
         )
-
-def digamma_precise(x: float) -> Decimal:
-    with localcontext() as ctx:
-        ctx.prec += 20
-        d = Decimal(x)
-        if d < 10:
-            d += int(10 - d)
-        else:
-            s = (
-                d.ln()
-                - 1 / (2 * d)
-                - 1 / (12 * d ** 2)
-                + 1 / (120 * d ** 4)
-                - 1 / (252 * d ** 6)
-                + 1 / (240 * d ** 8)
-                - 1 / (132 * d ** 10)
-                + 691 / (32760 * d ** 12)
-            )
-            if s == s - 1 / (120 * d ** 14):
-                return s
-            d -= int(d - 10)
-        s = -_BIG_EULER_MASCHERONI
-        i = 1
-        b = d
-        while s != s + b / i:
-            s += b / i
-            b *= (i - d) / (i + 1)
-            i += 1
-        if x < 10:
-            for i in range(int(10 - Decimal(x)) + 1):
-                s -= 1 / (d - i)
-        else:
-            for i in range(1, int(Decimal(x) - 10)):
-                s += 1 / (d + i)
-        return s
 
 def digamma(x: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
@@ -865,7 +807,7 @@ def digamma_down(x: float) -> float:
     elif x < 0.5 and x.is_integer():
         return -math.inf
     elif x >= 0.5:
-        return decimal_down(digamma_precise(x))
+        return float_down(digamma_precise(x))
     with localcontext() as ctx:
         ctx.prec += 10
         if x < 0.0:
@@ -875,13 +817,13 @@ def digamma_down(x: float) -> float:
         else:
             d = x
         c, s = cos_sin_precise(_BIG_PI * Decimal(d))
-        return decimal_down(digamma_precise(1 - x) - _BIG_PI * c / s)
+        return float_down(digamma_precise(1 - x) - _BIG_PI * c / s)
 
 def digamma_up(x: float) -> float:
     if math.isinf(x) or x < 0.5 and x.is_integer():
         return math.inf
     elif x >= 0.5:
-        return decimal_up(digamma_precise(x))
+        return float_up(digamma_precise(x))
     with localcontext() as ctx:
         ctx.prec += 10
         if x < 0.0:
@@ -891,7 +833,7 @@ def digamma_up(x: float) -> float:
         else:
             d = x
         c, s = cos_sin_precise(_BIG_PI * Decimal(d))
-        return decimal_up(digamma_precise(1 - x) - _BIG_PI * c / s)
+        return float_up(digamma_precise(1 - x) - _BIG_PI * c / s)
 
 def dist(p: Iterable[Union[Interval, float]], q: Iterable[Union[Interval, float]], /) -> Interval:
     dists = []
@@ -955,11 +897,11 @@ def erf(x: Union[Interval, float]) -> Interval:
 
 def erf_down(x: float) -> float:
     if abs(x) <= 1.5:
-        return decimal_down(erf_small_precise(x))
+        return float_down(erf_small_precise(x))
     elif 1.5 < x < 30.0:
-        return decimal_down(1 - erfc_precise(x))
+        return float_down(1 - erfc_precise(x))
     elif -30.0 < x < -1.5:
-        return decimal_down(erfc_precise(-x) - 1)
+        return float_down(erfc_precise(-x) - 1)
     elif x < 0.0:
         return -1.0
     elif math.isinf(x):
@@ -969,11 +911,11 @@ def erf_down(x: float) -> float:
 
 def erf_up(x: float) -> float:
     if abs(x) <= 1.5:
-        return decimal_up(erf_small_precise(x))
+        return float_up(erf_small_precise(x))
     elif 1.5 < x < 30.0:
-        return decimal_up(1 - erfc_precise(x))
+        return float_up(1 - erfc_precise(x))
     elif -30.0 < x < -1.5:
-        return decimal_up(erfc_precise(-x) - 1)
+        return float_up(erfc_precise(-x) - 1)
     elif x > 0.0:
         return 1.0
     elif math.isinf(x):
@@ -993,11 +935,11 @@ def erfc(x: Union[Interval, float]) -> Interval:
 
 def erfc_down(x: float) -> float:
     if abs(x) <= 1.5:
-        return decimal_down(1 - erf_small_precise(x))
+        return float_down(1 - erf_small_precise(x))
     elif 1.5 < x < 30.0:
-        return decimal_down(erfc_precise(x))
+        return float_down(erfc_precise(x))
     elif -30.0 < x < -1.5:
-        return decimal_down(erfc_precise(-x) + 2)
+        return float_down(erfc_precise(-x) + 2)
     elif x > 0.0:
         return 0.0
     elif math.isinf(x):
@@ -1007,11 +949,11 @@ def erfc_down(x: float) -> float:
 
 def erfc_up(x: float) -> float:
     if abs(x) <= 1.5:
-        return decimal_up(1 - erf_small_precise(x))
+        return float_up(1 - erf_small_precise(x))
     elif 1.5 < x < 30.0:
-        return decimal_up(erfc_precise(x))
+        return float_up(erfc_precise(x))
     elif -30.0 < x < -1.5:
-        return decimal_up(erfc_precise(-x) + 2)
+        return float_up(erfc_precise(-x) + 2)
     elif x < 0.0:
         return 2.0
     elif math.isinf(x):
@@ -1031,13 +973,13 @@ def exp(x: Union[Interval, float]) -> Interval:
 
 def exp_down(x: float) -> float:
     try:
-        return decimal_down(Decimal(x).exp())
+        return float_down(Decimal(x).exp())
     except decimal.Overflow:
         return math.nextafter(math.inf, x)
 
 def exp_up(x: float) -> float:
     try:
-        result = decimal_up(Decimal(x).exp())
+        result = float_up(Decimal(x).exp())
     except decimal.Overflow:
         return math.inf
     if result != 0.0 or math.isinf(x):
@@ -1066,19 +1008,400 @@ def expm1(x: Union[Interval, float]) -> Interval:
 
 def expm1_down(x: float) -> float:
     try:
-        return decimal_down(expm1_precise(x))
+        return float_down(expm1_precise(x))
     except decimal.Overflow:
         return math.nextafter(math.inf, x)
 
 def expm1_up(x: float) -> float:
     try:
-        result = decimal_up(expm1_precise(x))
+        result = float_up(expm1_precise(x))
     except decimal.Overflow:
         return math.inf
     if result != -1.0 or math.isinf(x):
         return result
     else:
         return math.nextafter(-1.0, 0.0)
+
+LGAMMA_POS_MIN_X = Decimal(
+    "1.46163214496836234126595423257"
+)
+LGAMMA_POS_MIN_Y = Decimal(
+    "-0.1214862905358496080955145571"
+)
+LGAMMA_NEG_MIN_X = (
+    Decimal()
+)
+
+DIGAMMA_ROOTS_CACHE: dict[float, tuple[float, float]] = {}
+
+def digamma_root(lower: float, upper: float) -> Decimal:
+    from pyroot.root_in import default
+    from pyroot.interval.root_all import bisect
+    assert float_up(int(math.nextafter(lower, 0.0))) == float_up(int(upper))
+    if float_up(int(upper)) not in DIGAMMA_ROOTS_CACHE:
+        n = int(-upper)
+        with localcontext() as ctx:
+            ctx.prec -= 20
+            y1 = -math.inf if lower.is_integer() else digamma_precise(lower)
+            y2 = math.inf if upper.is_integer() else digamma_precise(upper)
+            x = default(lambda x: float(digamma_precise(x)), lower, upper, y1=y1, y2=y2)
+        DIGAMMA_ROOTS_CACHE[float_up(int(upper))] = bisect(digamma, x + interval[-1e-13:1e-13] * (1 + abs(x)))._endpoints
+        assert len(DIGAMMA_ROOTS_CACHE[float_up(int(upper))]) == 2
+    return DIGAMMA_ROOTS_CACHE[float_up(int(upper))]
+
+LGAMMA_MINS_CACHE: dict[float, float] = {}
+
+def lgamma_min(lower: float, upper: float) -> Decimal:
+    assert float_up(int(math.nextafter(lower, 0.0))) == float_up(int(upper))
+    if float_up(int(upper)) not in LGAMMA_MINS_CACHE:
+        s, maximum = digamma_root(lower, upper)
+        L = math.inf
+        while s < maximum:
+            s = math.nextafter(s, maximum)
+            L = min(L, lgamma_precise(s))
+        LGAMMA_MINS_CACHE[float_up(int(upper))] = float_down(L)
+    return LGAMMA_MINS_CACHE[float_up(int(upper))]
+
+GAMMA_EXTREMA_CACHE: dict[float, float] = {}
+
+def gamma_extrema(lower: float, upper: float) -> Decimal:
+    assert float_up(int(math.nextafter(lower, 0.0))) == float_up(int(upper))
+    if float_up(int(upper)) in GAMMA_EXTREMA_CACHE:
+        pass
+    elif int(lower) % 2 == 0:
+        s, maximum = digamma_root(lower, upper)
+        L = gamma_precise(s)
+        while s < maximum:
+            s = math.nextafter(s, maximum)
+            L = max(L, gamma_precise(s))
+        GAMMA_EXTREMA_CACHE[float_up(int(upper))] = float_up(L)
+    else:
+        s, maximum = digamma_root(lower, upper)
+        L = gamma_precise(s)
+        while s < maximum:
+            s = math.nextafter(s, maximum)
+            L = min(L, gamma_precise(s))
+        GAMMA_EXTREMA_CACHE[float_up(int(upper))] = float_down(L)
+    return GAMMA_EXTREMA_CACHE[float_up(int(upper))]
+
+def lgamma(x: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
+    intervals = []
+    iterator = iter(x.__as_interval__()._endpoints)
+    for lower, upper in zip(iterator, iterator):
+        if lower > LGAMMA_POS_MIN_X:
+            L = lgamma_down(lower)
+            U = lgamma_up(upper)
+        elif math.isinf(lower):
+            L = -math.inf
+            U = math.inf
+        elif -3.155 < lower < LGAMMA_POS_MIN_X < upper:
+            L = float_down(LGAMMA_POS_MIN_Y)
+            if lower <= 0.0:
+                U = math.inf
+            else:
+                U = max(lgamma_up(lower), lgamma_up(upper))
+        elif digamma(Interval((lower, upper))).maximum <= 0.0:
+            L = lgamma_down(upper)
+            U = lgamma_up(lower)
+        elif digamma(Interval((lower, upper))).minimum >= 0.0:
+            L = lgamma_down(lower)
+            U = lgamma_up(upper)
+        elif digamma_precise(lower) <= 0:
+            L = lgamma_min(lower, min(float_up(int(lower)), upper))
+            if upper > LGAMMA_POS_MIN_X:
+                L = min(L, float_down(LGAMMA_POS_MIN_Y))
+            if upper - lower >= 1.0 or int(lower) <= upper or lower.is_integer():
+                U = math.inf
+            else:
+                U = max(lgamma_up(lower), lgamma_up(upper))
+        else:
+            L = lgamma_min(float_down(int(lower)), min(float_up(int(lower) + 1), upper))
+            L = min(L, lgamma_down(lower))
+            if upper > LGAMMA_POS_MIN_X:
+                L = min(L, float_down(LGAMMA_POS_MIN_Y))
+            U = math.inf
+        intervals.append((L, U))
+    return Interval(*intervals)
+
+def lgamma_down(x: float) -> float:
+    if math.isinf(x):
+        return x
+    elif x > 1e300 and math.isinf(x * (math.log(x) - 1)):
+        return math.nextafter(math.inf, 0.0)
+    elif math.nextafter(x, 0.0) - x >= 1.0:
+        return lgamma_min()
+    elif x < 0.5 and x.is_integer():
+        return math.inf
+    else:
+        return float_down(lgamma_precise(x))
+
+def lgamma_up(x: float) -> float:
+    if (
+        math.isinf(x)
+        or x > 1e300 and math.isinf(x * (math.log(x) - 1))
+        or x < 0.5 and x.is_integer()
+    ):
+        return math.inf
+    else:
+        return float_up(lgamma_precise(x))
+
+def gamma(x: Union[Interval, float]) -> Interval:
+    from pyroot.interval.root_all import bisect
+    if not isinstance(x, Interval):
+        x = float(x)
+        x = Interval((x, x))
+    intervals = []
+    iterator = iter(x.__as_interval__()._endpoints)
+    with localcontext() as ctx:
+        ctx.prec += 5
+        for lower, upper in zip(iterator, iterator):
+            if lower > LGAMMA_POS_MIN_X:
+                if lower >= 172.0:
+                    L = math.nextafter(math.inf, 0.0)
+                elif lower.is_integer():
+                    L = 1.0
+                    for i in range(2, round(lower)):
+                        L = mul_down(L, i)
+                else:
+                    try:
+                        L = float_down(lgamma_precise(lower).exp())
+                    except decimal.Overflow:
+                        L = math.nextafter(math.inf, 0.0)
+                if upper >= 172.0:
+                    U = math.inf
+                elif upper.is_integer():
+                    U = 1.0
+                    for i in range(2, round(upper)):
+                        U = mul_up(U, i)
+                else:
+                    try:
+                        U = float_up(lgamma_precise(upper).exp())
+                    except decimal.Overflow:
+                        U = math.inf
+                intervals.append((L, U))
+                continue
+            elif lower.is_integer() and lower == upper < 0.5:
+                continue
+            elif lower >= 0.0:
+                if lower == 0.0:
+                    U = math.inf
+                elif lower == 1.0:
+                    U = 1.0
+                else:
+                    try:
+                        U = float_up(lgamma_precise(lower).exp())
+                    except decimal.Overflow:
+                        U = math.inf
+                if upper >= 172.0:
+                    L = float_down(LGAMMA_POS_MIN_Y.exp())
+                    U = math.inf
+                elif upper == 1.0:
+                    L = 1.0
+                elif upper < LGAMMA_POS_MIN_X:
+                    try:
+                        L = float_down(lgamma_precise(upper).exp())
+                    except decimal.Overflow:
+                        L = math.nextafter(math.inf, 0.0)
+                elif upper.is_integer():
+                    L = 1.0
+                    for i in range(2, round(upper)):
+                        L = mul_up(L, i)
+                    U = max(L, U)
+                    L = float_down(LGAMMA_POS_MIN_Y.exp())
+                else:
+                    L = float_down(LGAMMA_POS_MIN_Y.exp())
+                    try:
+                        U = max(U, float_up(lgamma_precise(upper).exp()))
+                    except decimal.Overflow:
+                        U = math.inf
+                intervals.append((L, U))
+                continue
+            elif math.isinf(lower):
+                return Interval((-math.inf, math.inf))
+            elif upper >= 0.0:
+                if int(lower) % 2 == 0 and digamma_precise(lower) > 0:
+                    try:
+                        intervals.append((-math.inf, float_up(-lgamma_precise(lower).exp())))
+                    except decimal.Overflow:
+                        intervals.append((-math.inf, math.nextafter(-math.inf, 0.0)))
+                else:
+                    if int(lower) % 2 == 1:
+                        t = bisect(digamma, Interval((float_down(int(lower)), float_up(int(lower) + 1))))
+                    elif lower >= -1.0:
+                        t = bisect(digamma, Interval((lower, 0.0)))
+                    else:
+                        t = bisect(digamma, Interval((float_down(int(lower) + 1), float_up(int(lower) + 2))))
+                    assert len(t._endpoints) == 2
+                    s = t.minimum
+                    maximum = t.maximum
+                    _L = lgamma_precise(s)
+                    while s < maximum:
+                        s = math.nextafter(s, 0.0)
+                        _L = min(_L, lgamma_precise(s))
+                    intervals.append((-math.inf, float_up(-_L.exp())))
+                if upper > LGAMMA_POS_MIN_X and lower > -3.159:
+                    intervals.append((float_down(LGAMMA_POS_MIN_Y.exp()), math.inf))
+                else:
+                    if int(lower) % 2 == 0:
+                        t = bisect(digamma, Interval((float_down(int(lower)), float_up(int(lower) + 1))))
+                        _L = lgamma_precise(t.minimum)
+                    elif digamma_precise(lower) > 0:
+                        t = bisect(digamma, Interval((float_down(int(lower) + 1), float_up(int(lower) + 2))))
+                        _L = min(lgamma_precise(lower), lgamma_precise(t.minimum))
+                    else:
+                        t = bisect(digamma, Interval((lower, float_up(int(lower)))))
+                        _L = lgamma_precise(t.minimum)
+                    assert len(t._endpoints) == 2
+                    s = t.minimum
+                    maximum = t.maximum
+                    while s < maximum:
+                        s = math.nextafter(s, 0.0)
+                        _L = min(_L, lgamma_precise(s))
+                    intervals.append((float_down(_L), math.inf))
+            _L = digamma_precise(lower)
+            _U = digamma_precise(upper)
+            if (
+                (
+                    upper - lower > 1.0
+                    and _L < 0 < _U
+                ) or (
+                    (upper - lower >= 2.0 or int(lower) + 1 <= upper)
+                    and (_L < 0 or 0 < _U)
+                ) or upper - lower >= 3.0
+            ):
+                if (
+                    (
+                        upper - lower > 1.0
+                        and _L < 0
+                    ) or (
+                        (upper - lower >= 2.0 or int(lower) + 1 <= upper)
+                        and (_L < 0 or 0 < _U)
+                    )
+                ):
+                    t = bisect(digamma, Interval((lower, float_up(int(lower) + 1))))
+                elif float(int(lower)) == upper:
+                    t = bisect(digamma, Interval((lower, upper)))
+                else:
+                    t = bisect(digamma, Interval((float_down(int(lower)), upper)))
+                assert len(t._endpoints) >= 4
+                assert t._endpoints[2] - t._endpoints[1] > 0.9
+                s = t._endpoints[0]
+                maximum = min(t._endpoints[1], upper)
+                _L = lgamma_precise(s)
+                while s < maximum:
+                    s = math.nextafter(s, 0.0)
+                    _L = min(_L, lgamma_precise(s))
+                s = t._endpoints[0]
+                maximum = min(t._endpoints[1], maximum)
+                _U = lgamma_precise(s)
+                while s < maximum:
+                    s = math.nextafter(s, 0.0)
+                    _U = min(_U, lgamma_precise(s))
+                if int(t.minimum) % 2 == 1:
+                    _L, _U = _U, _L
+                if upper > LGAMMA_POS_MIN_X:
+                    _U = min(_U, LGAMMA_POS_MIN_Y)
+                try:
+                    intervals.append((-math.inf, float_up(-_L.exp())))
+                except decimal.Overflow:
+                    intervals.append((-math.inf, math.nextafter(-math.inf, 0.0)))
+                try:
+                    intervals.append((float_down(U.exp()), math.inf))
+                except decimal.Overflow:
+                    intervals.append((math.nextafter(math.inf, 0.0), math.inf))
+            elif (
+                _L < 0 < _U or (
+                    (upper - lower >= 1.0 or int(lower) <= upper)
+                    and (_L < 0 or 0 < _U)
+                )
+            ):
+                if _L < 0 < _U:
+                    t = bisect(digamma, Interval((lower, upper)))
+                elif _L < 0:
+                    t = bisect(digamma, Interval((lower, float_up(int(lower)))))
+                else:
+                    t = bisect(digamma, Interval((float_down(int(lower)), upper)))
+                assert len(t._endpoints) >= 4
+                assert t._endpoints[2] - t._endpoints[1] > 0.9
+                s = t._endpoints[0]
+                maximum = min(t._endpoints[1], upper)
+                extrema = lgamma_precise(s)
+                while s < maximum:
+                    s = math.nextafter(s, 0.0)
+                    extrema = min(extrema, lgamma_precise(s))
+                if int(t.minimum) % 2 == 0:
+                    if _L > 0:
+                        L = float_up(-extrema.exp())
+                        intervals.append((-math.inf, L))
+                        try:
+                            U = float_down(lgamma_precise(lower).exp())
+                        except decimal.Overflow:
+                            intervals.append((math.nextafter(math.inf, 0.0), math.inf))
+                        else:
+                            intervals.append((U, math.inf))
+                    elif _U > 0:
+                        try:
+                            L = float_down(-max(lgamma_precise(lower), lgamma_precise(upper)).exp())
+                        except decimal.Overflow:
+                            L = -math.inf
+                        U = float_up(-extrema.exp())
+                        intervals.append((L, U))
+                    else:
+                        L = float_up(-extrema.exp())
+                        intervals.append((-math.inf, L))
+                        try:
+                            U = float_down(lgamma_precise(upper).exp())
+                        except decimal.Overflow:
+                            intervals.append((math.nextafter(math.inf, 0.0), math.inf))
+                        else:
+                            intervals.append((U, math.inf))
+                else:
+                    if _L > 0:
+                        try:
+                            L = float_up(lgamma_precise(lower).exp())
+                        except decimal.Overflow:
+                            intervals.append((math.nextafter(math.inf, 0.0), math.inf))
+                        else:
+                            intervals.append((L, math.inf))
+                        U = float_down(extrema.exp())
+                        intervals.append((U, math.inf))
+                    elif _U > 0:
+                        L = float_down(extrema.exp())
+                        try:
+                            U = float_up(max(lgamma_precise(lower), lgamma_precise(upper)).exp())
+                        except decimal.Overflow:
+                            U = math.inf
+                        intervals.append((L, U))
+                    else:
+                        try:
+                            L = float_up(-lgamma_precise(upper).exp())
+                        except decimal.Overflow:
+                            intervals.append((-math.inf, math.nextafter(-math.inf, 0.0)))
+                        else:
+                            intervals.append((-math.inf, L))
+                        try:
+                            U = float_down(extrema.exp())
+                        except decimal.Overflow:
+                            intervals.append((math.nextafter(math.inf, 0.0), math.inf))
+                        else:
+                            intervals.append((U, math.inf))
+            elif upper - lower >= 1.0 or int(lower) <= upper:
+                _L = lgamma_precise(lower)
+                _U = lgamma_precise(upper)
+                if int(lower) % 2 == 1:
+                    _L, _U = _U, _L
+                intervals.append((-math.inf, float_up(-_L.exp())))
+                intervals.append((float_down(_U.exp()), math.inf))
+            elif int(lower) % 2 == 0:
+                _L, _U = sorted([lgamma_precise(lower), lgamma_precise(upper)])
+                intervals.append((float_down(-_U.exp()), float_up(-_L.exp())))
+            else:
+                _L, _U = sorted([lgamma_precise(lower), lgamma_precise(upper)])
+                intervals.append((float_down(_L.exp()), float_up(_U.exp())))
+    return Interval(*intervals)
 
 def log(x: Union[Interval, float], base: Optional[Union[Interval, float]] = None) -> Interval:
     if not isinstance(x, Interval):
@@ -1116,25 +1439,25 @@ def log_down(x: float, base: Optional[float] = None) -> float:
     if base is None:
         if x <= 0.0:
             return -math.inf
-        return decimal_down(Decimal(x).ln())
+        return float_down(Decimal(x).ln())
     elif base == 1.0:
         return -math.inf
     else:
         if x <= 0.0:
             return math.inf if base < 1.0 else -math.inf
-        return decimal_down(Decimal(x).ln() / Decimal(base).ln())
+        return float_down(Decimal(x).ln() / Decimal(base).ln())
 
 def log_up(x: float, base: Optional[float] = None) -> float:
     if base is None:
         if x <= 0.0:
             return -math.inf
-        return decimal_up(Decimal(x).ln())
+        return float_up(Decimal(x).ln())
     elif base == 1.0:
         return math.inf
     else:
         if x <= 0.0:
             return -math.inf if base > 1.0 else math.inf
-        return decimal_up(Decimal(x).ln() / Decimal(base).ln())
+        return float_up(Decimal(x).ln() / Decimal(base).ln())
 
 def pow(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
@@ -1183,10 +1506,10 @@ def sin(x: Union[Interval, float]) -> Interval:
             intervals.append((
                 -1.0
                 if lower <= -0.5 <= upper or 1.5 <= upper
-                else decimal_down(min(L, U)),
+                else float_down(min(L, U)),
                 1.0
                 if lower <= 0.5 <= upper or 2.5 <= upper
-                else decimal_up(max(L, U)),
+                else float_up(max(L, U)),
             ))
         return Interval(*intervals)
     x = x.__as_interval__()
@@ -1210,10 +1533,10 @@ def sin(x: Union[Interval, float]) -> Interval:
     ])
 
 def sin_down(x: float) -> float:
-    return decimal_down(cos_sin_precise(x)[1])
+    return float_down(cos_sin_precise(x)[1])
 
 def sin_up(x: float) -> float:
-    return decimal_up(cos_sin_precise(x)[1])
+    return float_up(cos_sin_precise(x)[1])
 
 def sinh(x: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
@@ -1231,22 +1554,22 @@ def sinh(x: Union[Interval, float]) -> Interval:
 def sinh_down(x: float) -> float:
     x = Decimal(x)
     try:
-        return decimal_down((x.exp() - (-x).exp()) / 2)
+        return float_down((x.exp() - (-x).exp()) / 2)
     except decimal.Overflow:
         pass
     try:
-        return decimal_down((x - Decimal(2).ln()).exp() - (-x - Decimal(2).ln()).exp())
+        return float_down((x - Decimal(2).ln()).exp() - (-x - Decimal(2).ln()).exp())
     except decimal.Overflow:
         return math.inf if x > 0 else -math.inf
 
 def sinh_up(x: float) -> float:
     x = Decimal(x)
     try:
-        return decimal_up((x.exp() - (-x).exp()) / 2)
+        return float_up((x.exp() - (-x).exp()) / 2)
     except decimal.Overflow:
         pass
     try:
-        return decimal_up((x - Decimal(2).ln()).exp() - (-x - Decimal(2).ln()).exp())
+        return float_up((x - Decimal(2).ln()).exp() - (-x - Decimal(2).ln()).exp())
     except decimal.Overflow:
         return math.inf if x > 0 else -math.inf
 
@@ -1319,10 +1642,10 @@ def tan(x: Union[Interval, float]) -> Interval:
                 c = sin_precise(Decimal(_upper - _upper / abs(_upper) * 0.5) * _BIG_PI)
                 U = s / c
             if U - L < upper - lower:
-                intervals.append((-math.inf, decimal_up(U)))
-                intervals.append((decimal_down(L), math.inf))
+                intervals.append((-math.inf, float_up(U)))
+                intervals.append((float_down(L), math.inf))
             else:
-                intervals.append((decimal_down(L), decimal_up(U)))
+                intervals.append((float_down(L), float_up(U)))
     else:
         iterator = iter(x.__as_interval__()._endpoints)
         for lower, upper in zip(iterator, iterator):
@@ -1333,19 +1656,19 @@ def tan(x: Union[Interval, float]) -> Interval:
             c, s = cos_sin_precise(upper)
             U = s / c
             if U - L < Decimal(upper) - Decimal(lower):
-                intervals.append((-math.inf, decimal_up(U)))
-                intervals.append((decimal_down(L), math.inf))
+                intervals.append((-math.inf, float_up(U)))
+                intervals.append((float_down(L), math.inf))
             else:
-                intervals.append((decimal_down(L), decimal_up(U)))
+                intervals.append((float_down(L), float_up(U)))
     return Interval(*intervals)
 
 def tan_down(x: float) -> float:
     c, s = cos_sin_precise(x)
-    return decimal_down(s / c)
+    return float_down(s / c)
 
 def tan_up(x: float) -> float:
     c, s = cos_sin_precise(x)
-    return decimal_up(s / c)
+    return float_up(s / c)
 
 def tanh(x: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
@@ -1363,7 +1686,7 @@ def tanh_down(x: float) -> float:
         t = (1 - (-d).exp()) / (1 + (-d).exp())
     else:
         t = (d.exp() - 1) / (d.exp() + 1)
-    return decimal_down(t)
+    return float_down(t)
 
 def tanh_up(x: float) -> float:
     d = 2 * Decimal(x)
@@ -1371,7 +1694,7 @@ def tanh_up(x: float) -> float:
         t = (1 - (-d).exp()) / (1 + (-d).exp())
     else:
         t = (d.exp() - 1) / (d.exp() + 1)
-    return decimal_up(t)
+    return float_up(t)
 
 def unadd(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):

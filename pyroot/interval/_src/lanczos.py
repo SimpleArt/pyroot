@@ -1,3 +1,7 @@
+"""
+https://github.com/siemens/vanilc/blob/master/3rdParty/boost/math/special_functions/lanczos.hpp
+https://github.com/siemens/vanilc/blob/master/3rdParty/boost/math/special_functions/gamma.hpp
+"""
 import decimal
 import math
 from collections.abc import Reversible
