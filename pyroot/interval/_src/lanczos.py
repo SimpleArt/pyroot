@@ -155,7 +155,7 @@ def digamma_precise(x: float) -> Decimal:
         return result
 
 def gamma_precise(x: float) -> Decimal:
-    from .imath import _BIG_PI, sin_precise
+    from .imath import _BIG_E, _BIG_PI, sin_precise
     with localcontext() as ctx:
         ctx.prec += 10
         if x >= 172.0:
@@ -174,19 +174,19 @@ def gamma_precise(x: float) -> Decimal:
         else:
             d = 1 - Decimal(x)
         result = None
-        if d >= 1e4:
-            d += 1
-            s = (
-                1
-                + 1 / (12 * d)
-                + 1 / (288 * d ** 2)
-                - 139 / (51840 * d ** 3)
-            )
-            if s == s - 571 / (2488320 * d ** 4):
-                try:
-                    result = (2 * d * _BIG_PI).ln() + (d.ln() - 1) * d + s.ln()
-                except decimal.Overflow:
-                    result = math.inf
+        if d >= 10.0:
+            try:
+                result = (2 * _BIG_PI / d).sqrt() * (d / _BIG_E) ** d * (
+                    1 / (156 * d ** 13)
+                    - 691 / (360360 * d ** 11)
+                    + 1 / (1188 * d ** 9)
+                    - 1 / (1680 * d ** 7)
+                    + 1 / (1260 * d ** 5)
+                    - 1 / (360 * d ** 3)
+                    + 1 / (12 * d)
+                ).exp()
+            except decimal.Overflow:
+                result = Decimal("Infinity")
         if result is None:
             d1 = d % 1
             result = ((d1 + G + Decimal("0.5")) / E) ** (d1 + Decimal("0.5")) * gamma_lanczos(d1 + 1)
@@ -227,19 +227,19 @@ def lgamma_precise(x: float) -> Decimal:
             assert False, "lgamma_precise should not accept non-positive integers"
         else:
             d = 1 - Decimal(x)
-        if d >= 1e4:
-            d += 1
-            s = (
-                1
+        if x >= 10.0:
+            result = (
+                1 / (156 * d ** 13)
+                - 691 / (360360 * d ** 11)
+                + 1 / (1188 * d ** 9)
+                - 1 / (1680 * d ** 7)
+                + 1 / (1260 * d ** 5)
+                - 1 / (360 * d ** 3)
                 + 1 / (12 * d)
-                + 1 / (288 * d ** 2)
-                - 139 / (51840 * d ** 3)
+                + (2 * _BIG_PI).ln() / 2
+                - d.ln() / 2
+                + d * (d.ln() - 1)
             )
-            if s == s - 571 / (2488320 * d ** 4):
-                try:
-                    result = (2 * d * _BIG_PI).ln() + (d.ln() - 1) * d + s.ln()
-                except decimal.Overflow:
-                    result = math.inf
         else:
             d1 = d % 1
             result = ((d1 + Decimal("0.5") + G).ln() - 1) * (d1 + Decimal("0.5")) + lgamma_exp_lanczos(d1 + 1).ln()
