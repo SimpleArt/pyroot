@@ -189,7 +189,7 @@ def gamma_precise(x: float) -> Decimal:
                     result = math.inf
         if result is None:
             d1 = d % 1
-            result = ((d + G - Decimal("0.5")) / E) ** (d - Decimal("0.5")) * gamma_lanczos(d)
+            result = ((d1 + G + Decimal("0.5")) / E) ** (d1 + Decimal("0.5")) * gamma_lanczos(d1 + 1)
             dx = 1
             while d - d1 > 1.5:
                 d1 += 1
