@@ -97,7 +97,7 @@ def lgamma_exp_lanczos(x: Decimal) -> Decimal:
 def digamma_precise(x: float) -> Decimal:
     from .imath import _BIG_PI, cos_precise, sin_precise
     with localcontext() as ctx:
-        ctx.prec += 10
+        ctx.prec = 72
         if x > 0.0 and math.isinf(x):
             return Decimal("Infinity")
         elif x > 0.0:
@@ -156,14 +156,18 @@ def digamma_precise(x: float) -> Decimal:
 def gamma_precise(x: float) -> Decimal:
     from .imath import _BIG_PI, sin_precise
     with localcontext() as ctx:
-        ctx.prec += 10
-        if x >= 172.0:
+        ctx.prec = 72
+        if x >= 179.0:
             return Decimal("Infinity")
         elif x > 0.0 and x.is_integer():
             result = Decimal(1)
+            temp = 1
             for i in range(2, round(x)):
-                result *= i
-            return result
+                temp *= i
+                if temp > 1e30:
+                    result *= temp
+                    temp = 1
+            return result * temp
         elif x > 0.0:
             d = Decimal(x)
         elif math.isinf(x):
@@ -216,14 +220,18 @@ def gamma_precise(x: float) -> Decimal:
 def lgamma_precise(x: float) -> Decimal:
     from .imath import _BIG_PI, sin_precise
     with localcontext() as ctx:
-        ctx.prec += 10
+        ctx.prec = 72
         if x > 0.0 and math.isinf(x):
             return math.inf
-        elif x > 0.0 and x.is_integer():
-            result = Decimal(1)
+        elif 0.0 < x < 3e4 and x.is_integer():
+            result = Decimal(0)
+            temp = 1
             for i in range(2, round(x)):
-                result *= i
-            return result.ln()
+                temp *= i
+                if temp > 1e30:
+                    result += Decimal(temp).ln()
+                    temp = 1
+            return result + Decimal(temp).ln()
         elif x > 0.0:
             d = Decimal(x)
         elif math.isinf(x):
@@ -232,7 +240,18 @@ def lgamma_precise(x: float) -> Decimal:
             assert False, "lgamma_precise should not accept non-positive integers"
         else:
             d = 1 - Decimal(x)
-        if x >= 10.0:
+        if -9.0 < x < 10.0:
+            d1 = d % 1
+            result = ((d1 + Decimal("0.5") + G).ln() - 1) * (d1 + Decimal("0.5")) + lgamma_exp_lanczos(d1 + 1).ln()
+            dx = 0
+            while d - d1 > 1.5:
+                d1 += 1
+                dx += d1.ln()
+            while d - d1 < 0.5:
+                dx -= d1.ln()
+                d1 -= 1
+            result += dx
+        else:
             d2 = d ** -2
             s = d2 / 156
             s -= Decimal(691) / 360360
@@ -253,17 +272,6 @@ def lgamma_precise(x: float) -> Decimal:
                 - d.ln() / 2
                 + d * (d.ln() - 1)
             )
-        else:
-            d1 = d % 1
-            result = ((d1 + Decimal("0.5") + G).ln() - 1) * (d1 + Decimal("0.5")) + lgamma_exp_lanczos(d1 + 1).ln()
-            dx = 0
-            while d - d1 > 1.5:
-                d1 += 1
-                dx += d1.ln()
-            while d - d1 < 0.5:
-                dx -= d1.ln()
-                d1 -= 1
-            result += dx
         if x <= 0.0:
             theta = abs(x) % 2.0
             if theta > 1.0:
