@@ -1239,26 +1239,27 @@ def log(x: Union[Interval, float], base: Optional[Union[Interval, float]] = None
             (log_down(lower), log_up(upper))
             for lower, upper in zip(iterator, iterator)
         ])
-    elif isinstance(base, Interval):
-        base = base.__as_interval__()[0:]
-        return Interval(
-            *[
-                (log_down(XL, BU), log_up(XU, BL))
-                for XL, XU in zip(*[iter(x[0:]._endpoints)] * 2)
-                for BL, BU in zip(*[iter(base[0:1]._endpoints)] * 2)
-            ],
-            *[
-                (log_down(XL, BU), log_up(XU, BL))
-                for XL, XU in zip(*[iter(x[0:]._endpoints)] * 2)
-                for BL, BU in zip(*[iter(base[1:]._endpoints)] * 2)
-            ],
-        )
-    else:
+    elif base == 10.0:
         iterator = iter(x[0:]._endpoints)
         return Interval(*[
-            (log_down(lower, base), log_up(lower, base))
+            (log_down(lower, 10.0), log_up(upper, 10.0))
             for lower, upper in zip(iterator, iterator)
         ])
+    elif not isinstance(base, Interval):
+        base = Interval(float_split(base))
+    base = base.__as_interval__()[0:]
+    return Interval(
+        *[
+            (log_down(XL, BU), log_up(XU, BL))
+            for XL, XU in zip(*[iter(x[0:]._endpoints)] * 2)
+            for BL, BU in zip(*[iter(base[0:1]._endpoints)] * 2)
+        ],
+        *[
+            (log_down(XL, BU), log_up(XU, BL))
+            for XL, XU in zip(*[iter(x[0:]._endpoints)] * 2)
+            for BL, BU in zip(*[iter(base[1:]._endpoints)] * 2)
+        ],
+    )
 
 def log_down(x: float, base: Optional[float] = None) -> float:
     if base is None:
@@ -1267,10 +1268,16 @@ def log_down(x: float, base: Optional[float] = None) -> float:
         return float_down(Decimal(x).ln())
     elif base == 1.0:
         return -math.inf
+    elif base == 10.0:
+        if x <= 0.0:
+            return -math.inf
+        else:
+            return float_down(Decimal(x).log10())
     else:
         if x <= 0.0:
             return math.inf if base < 1.0 else -math.inf
-        return float_down(Decimal(x).ln() / Decimal(base).ln())
+        else:
+            return float_down(Decimal(x).ln() / Decimal(base).ln())
 
 def log_up(x: float, base: Optional[float] = None) -> float:
     if base is None:
@@ -1279,10 +1286,56 @@ def log_up(x: float, base: Optional[float] = None) -> float:
         return float_up(Decimal(x).ln())
     elif base == 1.0:
         return math.inf
+    elif base == 10.0:
+        if x <= 0.0:
+            return -math.inf
+        else:
+            return float_up(Decimal(x).log10())
     else:
         if x <= 0.0:
             return -math.inf if base > 1.0 else math.inf
-        return float_up(Decimal(x).ln() / Decimal(base).ln())
+        else:
+            return float_up(Decimal(x).ln() / Decimal(base).ln())
+
+def log10(x: Union[Interval, float]) -> Interval:
+    return log(x, 10)
+
+def log1p(x: Union[Interval, float]) -> Interval:
+    if not isinstance(x, Interval):
+        x = Interval(float_split(x))
+    iterator = iter(x.__as_interval__()[-1.0:]._endpoints)
+    return Interval(*[
+        (log1p_down(lower), log1p_up(upper))
+        for lower, upper in zip(iterator, iterator)
+    ])
+
+def log1p_precise(x: float) -> Decimal:
+    with localcontext() as ctx:
+        ctx.prec += 2
+        d = Decimal(x)
+        d /= d + 2
+        t = 2 * d
+        d **= 2
+        s = 0
+        for n in range(1, 6, 2):
+            s += t / n
+            t *= d
+        return s
+
+def log1p_down(x: float) -> float:
+    if abs(x) < 1e-4:
+        return float_down(log1p_precise(x))
+    else:
+        return log_down(x + 1)
+
+def log1p_up(x: float) -> float:
+    if abs(x) < 1e-4:
+        return float_up(log1p_precise(x))
+    else:
+        return log_up(x + 1)
+
+def log2(x: Union[Interval, float]) -> Interval:
+    return log(x, 2)
 
 def pow(x: Union[Interval, float], y: Union[Interval, float]) -> Interval:
     if not isinstance(x, Interval):
