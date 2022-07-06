@@ -1,5 +1,20 @@
 import math
 from decimal import Decimal
+from typing import SupportsFloat
+
+def float_down(x: SupportsFloat) -> float:
+    y = float(x)
+    if x < y:
+        return math.nextafter(y, -math.inf)
+    else:
+        return y
+
+def float_up(x: SupportsFloat) -> float:
+    y = float(x)
+    if x > y:
+        return math.nextafter(y, math.inf)
+    else:
+        return y
 
 def multi_add(*args: float) -> list[float]:
     partials = []

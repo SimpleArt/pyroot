@@ -258,20 +258,6 @@ def sym_mod(x, modulo):
             x += 2 * modulo
     return x
 
-def float_down(x: SupportsFloat) -> float:
-    y = float(x)
-    if x < y:
-        return math.nextafter(y, -math.inf)
-    else:
-        return y
-
-def float_up(x: SupportsFloat) -> float:
-    y = float(x)
-    if x > y:
-        return math.nextafter(y, math.inf)
-    else:
-        return y
-
 def cos_precise(x: Decimal) -> Decimal:
     with localcontext() as ctx:
         ctx.prec += 2
