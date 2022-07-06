@@ -1328,6 +1328,9 @@ def gamma_down(x: float) -> float:
 def gamma_up(x: float) -> float:
     return float_up(gamma_precise(x))
 
+def hypot(*coordinates: Union[Interval, float]) -> float:
+    return dist(coordinates, (0.0,) * len(coordinates))
+
 def log(x: Union[Interval, float], base: Optional[Union[Interval, float]] = None) -> Interval:
     if not isinstance(x, Interval):
         x = Interval(float_split(x))
