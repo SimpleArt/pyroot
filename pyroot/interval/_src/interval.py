@@ -91,6 +91,10 @@ class Interval:
             for x in self.sub_intervals
         )
 
+    @classmethod
+    def __dist__(cls: Type[Self], p: list[Interval], q: list[Interval]) -> Self:
+        return NotImplemented
+
     def __eq__(self: Self, other: Any, /) -> bool:
         if isinstance(other, Interval) and type(self).__eq__ is type(other).__eq__:
             return self._endpoints == other._endpoints
@@ -98,6 +102,10 @@ class Interval:
             return self._endpoints == float_split(other)
         else:
             return NotImplemented
+
+    @classmethod
+    def __fsum__(cls: Type[Self], intervals: list[Interval]) -> Self:
+        return NotImplemented
 
     def __getitem__(self: Self, args: Union[slice, tuple[slice, ...]], /) -> Interval:
         if isinstance(args, slice):

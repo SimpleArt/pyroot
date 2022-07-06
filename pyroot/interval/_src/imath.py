@@ -1,9 +1,10 @@
 import decimal
+import itertools
 import math
 import operator
 from collections.abc import Iterable
 from decimal import Decimal, localcontext
-from typing import Any, Optional, SupportsFloat, SupportsIndex, TypeVar, Union, overload
+from typing import Any, Optional, SupportsFloat, SupportsIndex, Type, TypeVar, Union, overload
 
 from .fpu_rounding import *
 from .interval import Interval, interval
@@ -55,6 +56,16 @@ class PiMultiple(Interval):
     def __as_interval__(self: Self) -> Interval:
         return self.coefficients * _PI
 
+    @classmethod
+    def __dist__(cls: Type[Self], p: list[Interval], q: list[Interval]) -> Self:
+        if not all(
+            type(x).__dist__ is cls.__dist__
+            for pq in (p, q)
+            for x in pq
+        ):
+            return NotImplemented
+        return pi * dist([x.coefficients for x in p], [x.coefficients for x in q])
+
     def __eq__(self: Self, other: Any) -> bool:
         if isinstance(other, PiMultiple) and type(self).__eq__ is type(other).__eq__:
             return self._endpoints == other._endpoints
@@ -67,6 +78,15 @@ class PiMultiple(Interval):
             return self == Interval(float_split(other))
         else:
             return NotImplemented
+
+    @classmethod
+    def __fsum__(cls: Type[Self], intervals: list[Interval]) -> Self:
+        if not all(
+            type(x).__fsum__ is cls.__fsum__
+            for x in intervals
+        ):
+            return NotImplemented
+        return pi * fsum(x.coefficients for x in intervals)
 
     def __getitem__(self: Self, args: Union[slice, tuple[slice, ...]]) -> Interval:
         return self.__as_interval__()[args]
@@ -803,21 +823,59 @@ def digamma_up(x: float) -> float:
         return float_up(digamma_precise(1 - x) - _BIG_PI * c / s)
 
 def dist(p: Iterable[Union[Interval, float]], q: Iterable[Union[Interval, float]], /) -> Interval:
-    dists = []
-    for x, y in zip(p, q):
-        if not isinstance(x, Interval):
-            x = float(x)
-            x = Interval((x, x))
-        if len(y._endpoints) == 0:
-            return Interval()
-        if not isinstance(y, Interval):
-            y = float(y)
-            y = Interval((y, y))
-        if len(y._endpoints) == 0:
-            return Interval()
-        dists.append(abs(x - y))
-    maximum = max(d.maximum for d in dists)
-    return maximum * sqrt(sum((d / maximum) ** 2 for d in dists))
+    p = [x if isinstance(x, Interval) else Interval((float(x),) * 2) for x in p]
+    q = [x if isinstance(x, Interval) else Interval((float(x),) * 2) for x in q]
+    if len(p) != len(q):
+        raise ValueError("both points must have the same number of dimensions")
+    for pq in (p, q):
+        for x in pq:
+            result = type(x).__dist__(p, q)
+            if result is not NotImplemented:
+                return result
+    intervals = []
+    with localcontext() as ctx:
+        ctx.prec = 50
+        for sub_intervals in itertools.product(
+            *[
+                interval.__as_interval__().sub_intervals
+                for interval in p
+            ],
+            *[
+                interval.__as_interval__().sub_intervals
+                for interval in reversed(q)
+            ],
+        ):
+            partials = multi_add(*[
+                float_down(min(
+                    Decimal(sub_intervals[i].minimum) - Decimal(sub_intervals[~i].maximum),
+                    Decimal(sub_intervals[i].maximum) - Decimal(sub_intervals[~i].minimum),
+                    key=abs,
+                ) ** 2)
+                for i in range(len(p))
+                if 0.0 not in sub_intervals[i] - sub_intervals[~i]
+            ])
+            if len(partials) == 1 or partials[-2] > 0:
+                L = float_down(partials[-1])
+            else:
+                L = math.nextafter(float_up(partials[-1]), -math.inf)
+            if L > 0.0 and math.isinf(L):
+                L = math.nextafter(L, 0.0)
+            partials = multi_add(*[
+                float_up(max(
+                    Decimal(sub_intervals[i].minimum) - Decimal(sub_intervals[~i].maximum),
+                    Decimal(sub_intervals[i].maximum) - Decimal(sub_intervals[~i].minimum),
+                    key=abs,
+                ) ** 2)
+                for i in range(len(p))
+            ])
+            if len(partials) == 1 or partials[-2] < 0:
+                U = float_up(partials[-1])
+            else:
+                U = math.nextafter(float_down(partials[-1]), math.inf)
+            if U < 0.0 and math.isinf(U):
+                U = math.nextafter(U, 0.0)
+            intervals.append((L, U))
+    return Interval(*intervals)
 
 def erf_small_precise(x: float) -> Decimal:
     assert abs(x) <= 1.5
@@ -984,6 +1042,47 @@ def expm1_up(x: float) -> float:
         return result
     else:
         return math.nextafter(-1.0, 0.0)
+
+def fsum(intervals: Iterable[Union[Interval, float]]) -> Interval:
+    intervals = [
+        x
+        if isinstance(x, Interval)
+        else Interval((float(x),) * 2)
+        for x in intervals
+    ]
+    for x in intervals:
+        result = type(x).__fsum__(intervals)
+        if result is not NotImplemented:
+            return result
+    results = []
+    with localcontext() as ctx:
+        ctx.prec = 50
+        for sub_intervals in itertools.product(*[
+            interval.__as_interval__().sub_intervals
+            for interval in intervals
+        ]):
+            partials = multi_add(*[
+                sub_interval.minimum
+                for sub_interval in sub_intervals
+            ])
+            if len(partials) == 1 or partials[-2] > 0:
+                L = float_down(partials[-1])
+            else:
+                L = math.nextafter(float_up(partials[-1]), -math.inf)
+            if L > 0.0 and math.isinf(L):
+                L = math.nextafter(L, 0.0)
+            partials = multi_add(*[
+                sub_interval.maximum
+                for sub_interval in sub_intervals
+            ])
+            if len(partials) == 1 or partials[-2] < 0:
+                U = float_up(partials[-1])
+            else:
+                U = math.nextafter(float_down(partials[-1]), math.inf)
+            if U < 0.0 and math.isinf(U):
+                U = math.nextafter(U, 0.0)
+            results.append((L, U))
+    return Interval(*results)
 
 LGAMMA_POS_MIN_X = Decimal(
     "1.46163214496836234126595423257"
