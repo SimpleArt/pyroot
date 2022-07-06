@@ -2,6 +2,18 @@ import math
 from decimal import Decimal
 from typing import SupportsFloat
 
+def float_split(x: SupportsFloat) -> tuple[float, float]:
+    y = float(x)
+    if x < y:
+        L = math.nextafter(y, -math.inf)
+        U = y
+    elif x > y:
+        L = y
+        U = math.nextafter(y, math.inf)
+    else:
+        L = U = y
+    return (L, U)
+
 def float_down(x: SupportsFloat) -> float:
     y = float(x)
     if x < y:

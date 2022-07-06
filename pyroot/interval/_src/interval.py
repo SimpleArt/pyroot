@@ -30,8 +30,8 @@ class Interval:
         intervals = [
             (L, U)
             for lower, upper in args
-            for L in [float(lower)]
-            for U in [float(upper)]
+            for L in [fpur.float_down(lower)]
+            for U in [fpur.float_up(upper)]
             if L <= U
             if not isinf(L) or L < 0
             if not isinf(U) or U > 0
@@ -63,8 +63,7 @@ class Interval:
                 for y in other.sub_intervals
             ])
         elif isinstance(other, SupportsFloat):
-            other = float(other)
-            return self + interval[other:other]
+            return self + Interval(fpur.float_split(other))
         else:
             return NotImplemented
 
@@ -76,11 +75,7 @@ class Interval:
                 for y in other.sub_intervals
             ])
         elif isinstance(other, SupportsFloat):
-            other = float(other)
-            if other in self:
-                return type(self)((other, other))
-            else:
-                return type(self)()
+            return self & Interval(fpur.float_split(other))
         else:
             return NotImplemented
 
@@ -90,14 +85,17 @@ class Interval:
     def __contains__(self: Self, other: Any, /) -> bool:
         if not isinstance(other, SupportsFloat):
             return False
-        other = float(other)
-        return any(x.minimum <= other <= x.maximum for x in self.sub_intervals)
+        return any(
+            x.minimum <= other <= x.maximum
+            for o in {*fpur.float_split(other)}
+            for x in self.sub_intervals
+        )
 
     def __eq__(self: Self, other: Any, /) -> bool:
         if isinstance(other, Interval) and type(self).__eq__ is type(other).__eq__:
             return self._endpoints == other._endpoints
         elif isinstance(other, SupportsFloat):
-            return self._endpoints == (float(other),) * 2
+            return self._endpoints == float_split(other)
         else:
             return NotImplemented
 
@@ -121,8 +119,8 @@ class Interval:
                 raise ValueError(f"could not interpret {float(arg.stop)!r} as a real value")
         return self & type(self)(*[
             (
-                -inf if arg.start is None else float(arg.start),
-                inf if arg.stop is None else float(arg.stop),
+                -inf if arg.start is None else fpur.float_down(arg.start),
+                inf if arg.stop is None else fpur.float_up(arg.stop),
             )
             for arg in args
         ])
@@ -205,7 +203,7 @@ class Interval:
             return type(self)(*intervals)
         elif isinstance(other, SupportsFloat):
             other = float(other)
-            return self * interval[other:other]
+            return self * Interval(fpur.float_split(other))
         else:
             return NotImplemented
 
@@ -220,11 +218,7 @@ class Interval:
                 *[(x.minimum, x.maximum) for x in other.sub_intervals],
             )
         elif isinstance(other, SupportsFloat):
-            other = float(other)
-            if other in self:
-                return self
-            else:
-                return type(self)(*[(x.minimum, x.maximum) for x in self.sub_intervals], (other, other))
+            return type(self)(*[(x.minimum, x.maximum) for x in self.sub_intervals], Interval(fpur.float_split(other)))
         else:
             return NotImplemented
 
@@ -291,20 +285,20 @@ class Interval:
                 ]
             return type(self)(*intervals)
         elif isinstance(other, SupportsFloat):
-            other = float(other)
-            if other == round(other):
-                return self ** round(other)
-            elif other > 0:
+            other = Interval(fpur.float_split(other))
+            if other.minimum.is_integer() and other.minimum == other.maximum:
+                return self ** round(other.minimum)
+            elif other.minimum > 0:
                 iterator = iter(self[0:]._endpoints)
                 intervals = [
-                    (fpur.pow_down(lower, other), fpur.pow_up(upper, other))
+                    (fpur.pow_down(lower, other.minimum), fpur.pow_up(upper, other.maximum))
                     for lower, upper in zip(iterator, iterator)
                 ]
                 return type(self)(*intervals)
             else:
                 iterator = iter(self[0:]._endpoints)
                 intervals = [
-                    (fpur.pow_down(upper, other), fpur.pow_up(lower, other))
+                    (fpur.pow_down(upper, other.maximum), fpur.pow_up(lower, other.minimum))
                     for lower, upper in zip(iterator, iterator)
                 ]
                 return type(self)(*intervals)
@@ -315,7 +309,7 @@ class Interval:
         if isinstance(other, Interval):
             return other.__as_interval__() + self.__as_interval__()
         elif isinstance(other, SupportsFloat):
-            return self + other
+            return self + Interval(fpur.float_split(other))
         else:
             return NotImplemented
 
@@ -323,7 +317,7 @@ class Interval:
         if isinstance(other, Interval):
             return other.__as_interval__() & self.__as_interval__()
         elif isinstance(other, SupportsFloat):
-            return self & other
+            return self & Interval(fpur.float_split(other))
         else:
             return NotImplemented
 
@@ -345,7 +339,7 @@ class Interval:
         if isinstance(other, Interval):
             return other.__as_interval__() * self.__as_interval__()
         elif isinstance(other, SupportsFloat):
-            return self * other
+            return self * Interval(fpur.float_split(other))
         else:
             return NotImplemented
 
@@ -353,7 +347,7 @@ class Interval:
         if isinstance(other, Interval):
             return other.__as_interval__() | self.__as_interval__()
         elif isinstance(other, SupportsFloat):
-            return self | other
+            return self | Interval(fpur.float_split(other))
         else:
             return NotImplemented
 
@@ -363,8 +357,7 @@ class Interval:
         elif isinstance(other, Interval):
             return other.__as_interval__() ** self.__as_interval__()
         elif isinstance(other, SupportsFloat):
-            other = float(other)
-            return interval[other:other] ** self
+            return Interval(fpur.float_split(other)) ** self
         else:
             return NotImplemented
 
@@ -372,7 +365,7 @@ class Interval:
         if isinstance(other, Interval):
             return other.__as_interval__() - self.__as_interval__()
         elif isinstance(other, SupportsFloat):
-            return self * -1 + other
+            return Interval(fpur.float_split(other)) - self
         else:
             return NotImplemented
 
@@ -381,7 +374,7 @@ class Interval:
             return other.__as_interval__() / self.__as_interval__()
         elif isinstance(other, SupportsFloat):
             other = float(other)
-            return interval[other:other] / self
+            return Interval(fpur.float_split(other)) / self
         else:
             return NotImplemented
 
@@ -389,7 +382,7 @@ class Interval:
         if isinstance(other, Interval):
             return other.__as_interval__() ^ self.__as_interval__()
         elif isinstance(other, SupportsFloat):
-            return self | other
+            return self | Interval(fpur.float_split(other))
         else:
             return NotImplemented
 
@@ -401,8 +394,7 @@ class Interval:
                     intervals.append((fpur.sub_down(x.minimum, y.maximum), fpur.sub_up(x.maximum, y.minimum)))
             return type(self)(*intervals)
         elif isinstance(other, SupportsFloat):
-            other = float(other)
-            return self - interval[other:other]
+            return self - Interval(fpur.float_split(other))
         else:
             return NotImplemented
 
@@ -473,18 +465,22 @@ class Interval:
                         intervals.append((start, stop))
             return type(self)(*intervals)
         elif isinstance(other, SupportsFloat):
-            other = float(other)
-            if other > 0:
+            other = Interval(fpur.float_split(other))
+            if other.minimum > 0:
                 iterator = iter(self._endpoints)
                 return type(self)(*[
-                    (fpur.div_down(lower, other), fpur.div_up(upper, other))
+                    (fpur.div_down(lower, L), fpur.div_up(upper, U))
                     for lower, upper in zip(iterator, iterator)
+                    for L in [other.minimum if lower < 0.0 else other.maximum]
+                    for U in [other.maximum if upper < 0.0 else other.minimum]
                 ])
-            elif other < 0:
+            elif other.maximum < 0:
                 iterator = reversed(self._endpoints)
                 return type(self)(*[
-                    (fpur.div_down(upper, other), fpur.div_up(lower, other))
-                    for upper, lower in zip(iterator, iterator)
+                    (fpur.div_down(upper, L), fpur.div_up(lower, U))
+                    for lower, upper in zip(iterator, iterator)
+                    for L in [other.minimum if upper < 0.0 else other.maximum]
+                    for U in [other.maximum if lower < 0.0 else other.minimum]
                 ])
             else:
                 return interval[()]
@@ -496,7 +492,7 @@ class Interval:
             iterator = merge(self._endpoints, other._endpoints)
             return type(self)(*zip(iterator, iterator))
         elif isinstance(other, SupportsFloat):
-            return self | other
+            return self | Interval(fpur.float_split(other))
         else:
             return NotImplemented
 
