@@ -8,8 +8,6 @@ from collections.abc import Reversible
 from decimal import Decimal, localcontext
 from typing import Union
 
-E = Decimal("2.71828182845904523536028747")
-
 G = Decimal("10.90051099999999983936049829935654997826")
 
 NUMERATORS = (*[
@@ -156,7 +154,7 @@ def digamma_precise(x: float) -> Decimal:
         return result
 
 def gamma_precise(x: float) -> Decimal:
-    from .imath import _BIG_E, _BIG_PI, sin_precise
+    from .imath import _BIG_PI, sin_precise
     with localcontext() as ctx:
         ctx.prec += 10
         if x >= 172.0:
@@ -191,12 +189,12 @@ def gamma_precise(x: float) -> Decimal:
             s += Decimal(1) / 12
             s /= d
             try:
-                result = (2 * _BIG_PI / d).sqrt() * (d / _BIG_E) ** d * s.exp()
+                result = (2 * _BIG_PI / d).sqrt() * (d * Decimal(-1).exp()) ** d * s.exp()
             except decimal.Overflow:
                 result = Decimal("Infinity")
         else:
             d1 = d % 1
-            result = ((d1 + G + Decimal("0.5")) / E) ** (d1 + Decimal("0.5")) * gamma_lanczos(d1 + 1)
+            result = ((d1 + G + Decimal("0.5")) * Decimal(-1).exp()) ** (d1 + Decimal("0.5")) * gamma_lanczos(d1 + 1)
             dx = 1
             while d - d1 > 1.5:
                 d1 += 1
@@ -216,7 +214,7 @@ def gamma_precise(x: float) -> Decimal:
         return result
 
 def lgamma_precise(x: float) -> Decimal:
-    from .imath import _BIG_E, _BIG_PI, sin_precise
+    from .imath import _BIG_PI, sin_precise
     with localcontext() as ctx:
         ctx.prec += 10
         if x > 0.0 and math.isinf(x):
