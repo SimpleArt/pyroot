@@ -3,8 +3,12 @@ from decimal import Decimal
 
 def multi_add(*args: float) -> list[float]:
     partials = []
-    for arg in args:
-        partials_add(partials, arg)
+    remaining = sorted(args)
+    for _ in range(len(args)):
+        if len(partials) == 0 or partials[-1] < 0:
+            partials_add(partials, remaining.pop())
+        else:
+            partials_add(partials, remaining.pop(0))
     return partials
 
 def partials_add(partials: list[float], x: float) -> list[float]:
@@ -13,12 +17,17 @@ def partials_add(partials: list[float], x: float) -> list[float]:
         if abs(x) < abs(y):
             x, y = y, x
         total = x + y
+        if math.isinf(total):
+            partials[:] = [total]
+            return partials
         error = y - (total - x)
         if error != 0.0:
             partials[i] = error
             i += 1
         x = total
     partials[i:] = [x]
+    if len(partials) > 1 and x == 0.0:
+        del partials[-1]
     return partials
 
 def partials_times(partials: list[float], x: float) -> list[float]:
