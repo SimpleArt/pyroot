@@ -271,8 +271,11 @@ class Interval:
                     stop = fpur.pow_up(x.maximum, y.maximum)
                     intervals.append((start, stop))
                 for y in other[:0].sub_intervals:
-                    start = fpur.pow_down(x.maximum, y.maximum)
-                    stop = fpur.pow_up(x.minimum, y.minimum)
+                    if y.minimum < 0.0 == x.minimum:
+                        start = stop = math.inf
+                    else:
+                        start = fpur.pow_down(x.maximum, y.maximum)
+                        stop = fpur.pow_up(x.minimum, y.minimum)
                     intervals.append((start, stop))
             return type(self)(*intervals)
         elif isinstance(other, SupportsIndex):
@@ -283,19 +286,42 @@ class Interval:
                 for _ in iterator:
                     intervals.append((1.0, 1.0))
                     break
-            elif other % 2 == 0:
+            elif other > 0 and other % 2 == 0:
                 for lower, upper in zip(iterator, iterator):
-                    if upper <= 0:
+                    if upper < 0:
                         intervals.append((fpur.pow_down(upper, other), fpur.pow_up(lower, other)))
-                    elif lower >= 0:
+                    elif lower > 0:
                         intervals.append((fpur.pow_down(lower, other), fpur.pow_up(upper, other)))
                     else:
                         intervals.append((0.0, fpur.pow_up(max(lower, upper, key=abs), other)))
-            else:
+            elif other > 0:
                 intervals = [
-                   (fpur.pow_down(lower, other), fpur.pow_up(upper, other))
-                   for lower, upper in zip(iterator, iterator)
+                    (fpur.pow_down(lower, other), fpur.pow_up(upper, other))
+                    for lower, upper in zip(iterator, iterator)
                 ]
+            elif other % 2 == 0:
+                for lower, upper in zip(iterator, iterator):
+                    if upper < 0:
+                        intervals.append((fpur.pow_down(lower, other), fpur.pow_up(upper, other)))
+                    elif lower > 0:
+                        intervals.append((fpur.pow_down(upper, other), fpur.pow_up(lower, other)))
+                    elif lower == upper:
+                        intervals.append((inf, inf))
+                    else:
+                        intervals.append((fpur.pow_down(max(lower, upper, key=abs), other), inf))
+            else:
+                for lower, upper in zip(iterator, iterator):
+                    if not lower <= 0 <= upper:
+                        intervals.append((fpur.pow_down(upper, other), fpur.pow_up(lower, other)))
+                        continue
+                    elif lower == 0 == upper:
+                        intervals.append((-inf, -inf))
+                        intervals.append((inf, inf))
+                        continue
+                    if lower < 0:
+                        intervals.append((-inf, fpur.pow_up(lower, other)))
+                    if upper > 0:
+                        intervals.append((fpur.pow_down(upper, other), inf))
             return type(self)(*intervals)
         elif isinstance(other, SupportsFloat):
             other = Interval(fpur.float_split(other))

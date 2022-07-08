@@ -795,8 +795,12 @@ def digamma(x: Union[Interval, float]) -> Interval:
         if lower > 0:
             intervals.append((digamma_down(lower), digamma_up(upper)))
             continue
-        elif upper - lower >= 1.0:
+        elif upper - lower >= 2.0 or math.ceil(lower) < math.floor(upper):
             return Interval((-math.inf, math.inf))
+        elif lower == upper and lower.is_integer():
+            intervals.append((-math.inf, -math.inf))
+            intervals.append((math.inf, math.inf))
+            continue
         elif lower.is_integer():
             L = -math.inf
         else:
@@ -1205,7 +1209,7 @@ def lgamma(x: Union[Interval, float]) -> Interval:
             else:
                 U = max(lgamma_up(lower), lgamma_up(upper))
         elif lower == upper < 0.5 and lower.is_integer():
-            continues
+            L = U = math.inf
         elif digamma(Interval((lower, upper))).maximum < 0.0:
             L = lgamma_down(upper)
             U = lgamma_up(lower)
@@ -1257,7 +1261,8 @@ def gamma(x: Union[Interval, float]) -> Interval:
             elif math.isinf(lower):
                 return Interval((-math.inf, math.inf))
             elif lower == upper < 0.5 and lower.is_integer():
-                continue
+                intervals.append((-math.inf, -math.inf))
+                L = U = math.inf
             elif 0.0 <= lower <= upper < LGAMMA_POS_MIN_X:
                 L = gamma_down(upper)
                 U = gamma_up(lower)
@@ -1388,36 +1393,56 @@ def log(x: Union[Interval, float], base: Optional[Union[Interval, float]] = None
 
 def log_down(x: float, base: Optional[float] = None) -> float:
     if base is None:
-        if x <= 0.0:
+        if x == 0.0:
             return -math.inf
         return float_down(Decimal(x).ln())
+    elif base == 0.0:
+        if math.isinf(x):
+            return -math.inf
+        else:
+            return 0.0
     elif base == 1.0:
         return -math.inf
     elif base == 10.0:
-        if x <= 0.0:
+        if x == 0.0:
             return -math.inf
         else:
             return float_down(Decimal(x).log10())
+    elif math.isinf(base):
+        if x == 0.0:
+            return -math.inf
+        else:
+            return 0.0
     else:
-        if x <= 0.0:
+        if x == 0.0:
             return math.inf if base < 1.0 else -math.inf
         else:
             return float_down(Decimal(x).ln() / Decimal(base).ln())
 
 def log_up(x: float, base: Optional[float] = None) -> float:
     if base is None:
-        if x <= 0.0:
+        if x == 0.0:
             return -math.inf
         return float_up(Decimal(x).ln())
+    elif base == 0.0:
+        if x == 0.0:
+            return math.inf
+        else:
+            return 0.0
     elif base == 1.0:
         return math.inf
     elif base == 10.0:
-        if x <= 0.0:
+        if x == 0.0:
             return -math.inf
         else:
             return float_up(Decimal(x).log10())
+    elif math.isinf(base):
+        if math.isinf(x):
+            return math.inf
+        else:
+            return 0.0
     else:
-        if x <= 0.0:
+        if x == 0.0:
             return -math.inf if base > 1.0 else math.inf
         else:
             return float_up(Decimal(x).ln() / Decimal(base).ln())
