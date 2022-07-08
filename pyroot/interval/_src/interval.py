@@ -115,6 +115,20 @@ class Interval:
         else:
             return NotImplemented
 
+    def __format__(self: Self, specifier: str, /) -> str:
+        if len(self._endpoints) == 0:
+            return "interval[()]"
+        else:
+            iterator = iter(self._endpoints)
+            bounds = ", ".join([
+                ":".join([
+                    f"{-0.0:{specifier}}" if lower == 0.0 else "" if isinf(lower) and lower < 0.0 else f"{lower:{specifier}}",
+                    f"{0.0:{specifier}}" if upper == 0.0 else "" if isinf(upper) and upper > 0.0 else f"{upper:{specifier}}",
+                ])
+                for lower, upper in zip(iterator, iterator)
+            ])
+            return f"interval[{bounds}]"
+
     @classmethod
     def __fsum__(cls: Type[Self], intervals: list[Interval]) -> Self:
         return NotImplemented
@@ -321,18 +335,7 @@ class Interval:
             return NotImplemented
 
     def __repr__(self: Self, /) -> str:
-        if len(self._endpoints) == 0:
-            return "interval[()]"
-        else:
-            iterator = iter(self._endpoints)
-            bounds = ", ".join([
-                ":".join([
-                    "-0.0" if lower == upper == 0 else "0.0" if lower == 0 else "" if isinf(lower) else repr(lower),
-                    "0.0" if lower == upper == 0 else "-0.0" if upper == 0 else "" if isinf(upper) else repr(upper),
-                ])
-                for lower, upper in zip(iterator, iterator)
-            ])
-            return f"interval[{bounds}]"
+        return f"{self}"
 
     def __rmul__(self: Self, other: Union[Interval, float], /) -> Interval:
         if isinstance(other, Interval):

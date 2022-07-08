@@ -104,6 +104,12 @@ class PiMultiple(Interval):
         else:
             return NotImplemented
 
+    def __format__(self: Self, specifier: str) -> str:
+        if self == pi:
+            return "pi"
+        else:
+            return format(self.coefficients, specifier) + " * pi"
+
     @classmethod
     def __fsum__(cls: Type[Self], intervals: list[Interval]) -> Self:
         if not all(
@@ -195,12 +201,6 @@ class PiMultiple(Interval):
             return Interval(*zip(iterator, iterator))
         else:
             return NotImplemented
-
-    def __repr__(self: Self) -> str:
-        if self == pi:
-            return "pi"
-        else:
-            return super().__repr__() + " * pi"
 
     def __rmul__(self: Self, other: Union[Interval, float]) -> Interval:
         if isinstance(other, Interval) and type(other).__mul__ is Interval.__mul__ or isinstance(other, SupportsFloat):
