@@ -658,6 +658,8 @@ def atanh_up(x: float) -> float:
 
 def cos(x: Union[Decimal, Interval, SupportsIndex, float]) -> Interval:
     if isinstance(x, (Decimal, SupportsIndex)):
+        if isinstance(x, Decimal) and x.is_infinite():
+            return Interval((-1.0, 1.0))
         return Interval(float_split(cos_sin_precise(x)[0]))
     elif not isinstance(x, Interval):
         x = Interval(float_split(x))
@@ -666,7 +668,7 @@ def cos(x: Union[Decimal, Interval, SupportsIndex, float]) -> Interval:
         for sub_interval in abs(x).sub_intervals:
             lower = sym_mod(sub_interval._endpoints[0], 1)
             upper = sub_interval._endpoints[1] - sub_interval._endpoints[0] + lower
-            if not upper - lower < 2.0:
+            if upper - lower > 2.0 or math.isinf(lower) or math.isinf(upper):
                 return Interval((-1.0, 1.0))
             _upper = sym_mod(upper, 1)
             if lower < -0.75:
@@ -1472,6 +1474,8 @@ def radians(x: Union[Interval, float]) -> Interval:
 
 def sin(x: Union[Decimal, Interval, SupportsIndex, float]) -> Interval:
     if isinstance(x, (Decimal, SupportsIndex)):
+        if isinstance(x, Decimal) and x.is_infinite():
+            return Interval((-1.0, 1.0))
         return Interval(float_split(cos_sin_precise(x)[1]))
     elif not isinstance(x, Interval):
         x = Interval(float_split(x))
@@ -1480,7 +1484,7 @@ def sin(x: Union[Decimal, Interval, SupportsIndex, float]) -> Interval:
         for sub_interval in x.sub_intervals:
             lower = sym_mod(sub_interval._endpoints[0], 1)
             upper = sub_interval._endpoints[1] - sub_interval._endpoints[0] + lower
-            if not upper - lower < 2.0:
+            if upper - lower > 2.0 or math.isinf(lower) or math.isinf(upper):
                 return Interval((-1.0, 1.0))
             _upper = sym_mod(upper, 1)
             if lower < -0.75:
@@ -1608,6 +1612,8 @@ def sqrt_up(x: float) -> float:
 
 def tan(x: Union[Decimal, Interval, SupportsIndex, float]) -> Interval:
     if isinstance(x, (Decimal, SupportsIndex)):
+        if isinstance(x, Decimal) and x.is_infinite():
+            return interval
         c, s = cos_sin_precise(x)
         return Interval(float_split(s / c))
     elif not isinstance(x, Interval):
@@ -1618,6 +1624,8 @@ def tan(x: Union[Decimal, Interval, SupportsIndex, float]) -> Interval:
             lower = sym_mod(sub_interval._endpoints[0], 0.5)
             upper = sub_interval._endpoints[1] - sub_interval._endpoints[0] + lower
             if lower == upper in (-0.5, 0.5):
+                intervals.append((-math.inf, -math.inf))
+                intervals.append((math.inf, math.inf))
                 continue
             if not upper - lower < 1.0:
                 return interval
@@ -1654,7 +1662,7 @@ def tan(x: Union[Decimal, Interval, SupportsIndex, float]) -> Interval:
     else:
         iterator = iter(x.__as_interval__()._endpoints)
         for lower, upper in zip(iterator, iterator):
-            if Decimal(upper) - Decimal(lower) > _BIG_PI:
+            if math.isinf(lower) or math.isinf(upper) or Decimal(upper) - Decimal(lower) > _BIG_PI:
                 return interval
             c, s = cos_sin_precise(lower)
             L = s / c
