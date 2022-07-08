@@ -217,7 +217,7 @@ def pow_down(x: float, y: float) -> float:
         result = math.pow(x, y)
     except OverflowError:
         return math.nextafter(x ** (y % 2) * math.inf, -math.inf)
-    except ZeroDivisionError:
+    except ValueError:
         if y == round(y) and round(y) % 2 == 1:
             return -math.inf
         else:
@@ -240,7 +240,7 @@ def pow_up(x: float, y: float) -> float:
         result = math.pow(x, y)
     except OverflowError:
         return math.nextafter(x ** (y % 2) * math.inf, math.inf)
-    except ZeroDivisionError:
+    except ValueError:
         return math.inf
     if (
         not 0.0 != abs(x) != 1.0
