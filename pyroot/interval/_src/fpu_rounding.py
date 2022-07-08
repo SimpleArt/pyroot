@@ -1,6 +1,16 @@
 import math
 from decimal import Decimal
-from typing import SupportsFloat
+from typing import Iterator, SupportsFloat
+
+def split_bits(n: int) -> Iterator[int]:
+    if n > 0:
+        while n != 0:
+            yield 1 << (n.bit_length() - 1)
+            n -= 1 << (n.bit_length() - 1)
+    else:
+        while n != 0:
+            yield -(1 << (n.bit_length() - 1))
+            n += 1 << (n.bit_length() - 1)
 
 def float_split(x: SupportsFloat) -> tuple[float, float]:
     y = float(x)
@@ -73,18 +83,24 @@ def add_precise(x: float, y: float) -> list[float]:
     return [error, total]
 
 def add_down(x: float, y: float) -> float:
-    partials = add_precise(x, y)
-    if partials[0] < 0.0:
-        return math.nextafter(partials[1], -math.inf)
+    if isinstance(y, int):
+        partials = multi_add(x, *[float(n) for n in split_bits(y)])
     else:
-        return partials[1]
+        partials = add_precise(x, y)
+    if len(partials) > 1 and partials[-2] < 0.0:
+        return math.nextafter(partials[-1], -math.inf)
+    else:
+        return partials[-1]
 
 def add_up(x: float, y: float) -> float:
-    partials = add_precise(x, y)
-    if partials[0] > 0.0:
-        return math.nextafter(partials[1], math.inf)
+    if isinstance(y, int):
+        partials = multi_add(x, *[float(n) for n in split_bits(y)])
     else:
-        return partials[1]
+        partials = add_precise(x, y)
+    if len(partials) > 1 and partials[-2] > 0.0:
+        return math.nextafter(partials[-1], math.inf)
+    else:
+        return partials[-1]
 
 def sub_down(x: float, y: float) -> float:
     return add_down(x, -y)
@@ -197,15 +213,17 @@ def div_up(x: float, y: float) -> float:
         return math.nextafter(0.0, math.inf)
 
 def pow_down(x: float, y: float) -> float:
-    x = float(x)
     try:
         result = math.pow(x, y)
     except OverflowError:
         return math.nextafter(x ** (y % 2) * math.inf, -math.inf)
+    except ZeroDivisionError:
+        if y == round(y) and round(y) % 2 == 1:
+            return -math.inf
+        else:
+            return math.inf
     if (
-        round(y) == y
-        or x <= 0.0
-        or x == 1.0
+        not 0.0 != abs(x) != 1.0
         or math.isinf(x)
         or math.isnan(x)
         or math.isinf(y)
@@ -213,20 +231,19 @@ def pow_down(x: float, y: float) -> float:
     ):
         return result
     elif Decimal(x) ** Decimal(y) < result:
-        return math.nextafter(result, 0.0)
+        return math.nextafter(result, -math.inf)
     else:
         return result
 
 def pow_up(x: float, y: float) -> float:
-    x = float(x)
     try:
         result = math.pow(x, y)
     except OverflowError:
         return math.nextafter(x ** (y % 2) * math.inf, math.inf)
+    except ZeroDivisionError:
+        return math.inf
     if (
-        round(y) == y
-        or x <= 0.0
-        or x == 1.0
+        not 0.0 != abs(x) != 1.0
         or math.isinf(x)
         or math.isnan(x)
         or math.isinf(y)
@@ -234,6 +251,6 @@ def pow_up(x: float, y: float) -> float:
     ):
         return result
     elif Decimal(x) ** Decimal(y) > result:
-        return math.nextafter(result, 2 * result)
+        return math.nextafter(result, math.inf)
     else:
         return result

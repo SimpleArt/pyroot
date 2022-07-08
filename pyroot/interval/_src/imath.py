@@ -13,11 +13,12 @@ from .lanczos import digamma_precise, gamma_precise, lgamma_precise
 e = interval[math.e:math.nextafter(math.e, math.inf)]
 _PI = interval[math.pi:math.nextafter(math.pi, math.inf)]
 _BIG_PI = Decimal(
-    "3.141592653589793238462643383279502884197169399375105820974944592"
-    "30781640628620899862803482534211706798214808651328230664709384460"
-    "95505822317253594081284811174502841027019385211055596446229489549"
-    "30381964428810975665933446128475648233786783165271201909145648566"
-    "923460348610454326648213393607260249141273724587006606"
+    "3."
+    "14159265358979323846264338327950288419716939937510582097494459230"
+    "78164062862089986280348253421170679821480865132823066470938446095"
+    "50582231725359408128481117450284102701938521105559644622948954930"
+    "38196442881097566593344612847564823378678316527120190914564856692"
+    "34603486104543266482133936072602491412737245870066063155881748815"
 )
 
 Self = TypeVar("Self", bound="PiMultiple")
@@ -37,6 +38,30 @@ class PiMultiple(Interval):
             return type(self)(*zip(iterator, iterator))
         elif isinstance(other, Interval) and Interval.__add__ is type(other).__add__:
             return self.__as_interval__() + other
+        elif isinstance(other, (Decimal, SupportsIndex)):
+            intervals = []
+            iterator = iter(self._endpoints)
+            with localcontext() as ctx:
+                if isinstance(SupportsIndex):
+                    other = operator.index(other)
+                    ctx.prec += other.bit_length() + 2
+                else:
+                    ctx.prec += (1 + abs(other)).log10() + 2
+                for lower, upper in zip(iterator, iterator):
+                    if math.isinf(lower):
+                        L = lower
+                    else:
+                        with localcontext() as ctx:
+                            ctx.prec += 2 * int(math.log10(1 + abs(lower)))
+                            L = Decimal(lower) * _BIG_PI + other
+                    if math.isinf(upper):
+                        U = lower
+                    else:
+                        with localcontext() as ctx:
+                            ctx.prec += 2 * int(math.log10(1 + abs(upper)))
+                            U = Decimal(lower) * _BIG_PI + other
+                    intervals.append((L, U))
+            return Interval(*intervals)
         elif isinstance(other, SupportsFloat):
             return self.__as_interval__() + Interval(float_split(other))
         else:
@@ -178,12 +203,8 @@ class PiMultiple(Interval):
             return super().__repr__() + " * pi"
 
     def __rmul__(self: Self, other: Union[Interval, float]) -> Interval:
-        if isinstance(other, Interval):
-            iterator = iter((other * self.coefficients)._endpoints)
-            return type(self)(*zip(iterator, iterator))
-        elif isinstance(other, SupportsFloat):
-            iterator = iter((Interval(float_split(other)) * self.coefficients)._endpoints)
-            return type(self)(*zip(iterator, iterator))
+        if isinstance(other, Interval) and type(other).__mul__ is Interval.__mul__ or isinstance(other, SupportsFloat):
+            return self * other
         else:
             return NotImplemented
 
@@ -192,7 +213,11 @@ class PiMultiple(Interval):
             iterator = iter((self.coefficients - other.coefficients)._endpoints)
             return type(self)(*zip(iterator, iterator))
         elif isinstance(other, Interval) and Interval.__sub__ is type(other).__sub__:
-            return self.__as_interval__() - Interval(float_split(other))
+            return self.__as_interval__() - other.__as_interval__()
+        elif isinstance(other, Decimal):
+            return self + -other
+        elif isinstance(other, SupportsIndex):
+            return self + -operator.index(other)
         elif isinstance(other, SupportsFloat):
             return self.__as_interval__() - float(other)
         else:
@@ -274,17 +299,9 @@ def sym_mod(x, modulo):
 def cos_precise(x: Decimal) -> Decimal:
     with localcontext() as ctx:
         ctx.prec += 2
-        if x >= 0:
-            x %= (2 * _BIG_PI)
-            if x > _BIG_PI:
-                x -= _BIG_PI
-        else:
-            x = -((-x) % (2 * _BIG_PI))
-            if x < -_BIG_PI:
-                x += _BIG_PI
+        x = sym_mod(x, _BIG_PI) ** 2
         i = last_s = 0
         s = fact = num = sign = 1
-        x *= x
         while s != last_s:
             last_s = s
             i += 2
@@ -297,18 +314,10 @@ def cos_precise(x: Decimal) -> Decimal:
 def sin_precise(x: Decimal) -> Decimal:
     with localcontext() as ctx:
         ctx.prec += 2
-        if x >= 0:
-            x %= (2 * _BIG_PI)
-            if x > _BIG_PI:
-                x -= _BIG_PI
-        else:
-            x = -((-x) % (2 * _BIG_PI))
-            if x < -_BIG_PI:
-                x += _BIG_PI
-        s = num = x
+        s = num = x = sym_mod(x, _BIG_PI)
         last_s = 0
         i = fact = sign = 1
-        x *= x
+        x **= 2
         while s != last_s:
             last_s = s
             i += 2
@@ -318,9 +327,15 @@ def sin_precise(x: Decimal) -> Decimal:
             s += sign * num / fact
         return s
 
-def cos_sin_precise(x: float) -> tuple[Decimal, Decimal]:
+def cos_sin_precise(x: Union[Decimal, SupportsIndex, float]) -> tuple[Decimal, Decimal]:
     with localcontext() as ctx:
-        ctx.prec += int(2 * math.log10(1 + abs(x))) + 10
+        if isinstance(x, SupportsIndex):
+            x = operator.index(x)
+            ctx.prec += x.bit_length() + 10
+        elif isinstance(x, Decimal):
+            ctx.prec += 2 * int((1 + abs(x)).log10()) + 10
+        else:
+            ctx.prec += 2 * int(math.log10(1 + abs(x))) + 10
         c = cos_precise(Decimal(abs(x)))
         s = sin_precise(Decimal(abs(x)))
         if x < 0:
@@ -641,8 +656,10 @@ def atanh_up(x: float) -> float:
     else:
         return y
 
-def cos(x: Union[Interval, float]) -> Interval:
-    if not isinstance(x, Interval):
+def cos(x: Union[Decimal, Interval, SupportsIndex, float]) -> Interval:
+    if isinstance(x, (Decimal, SupportsIndex)):
+        return Interval(float_split(cos_sin_precise(x)[0]))
+    elif not isinstance(x, Interval):
         x = Interval(float_split(x))
     elif isinstance(x, PiMultiple):
         intervals = []
@@ -686,20 +703,25 @@ def cos(x: Union[Interval, float]) -> Interval:
         return x
     elif math.isinf(x._endpoints[0]) or math.isinf(x._endpoints[-1]):
         return interval[-1.0:1.0]
+    intervals = []
     iterator = iter(x._endpoints)
-    return Interval(*[
-        (
-            -1.0
-            if L == -_BIG_PI or _BIG_PI <= U
-            else min(cos_down(lower), cos_down(upper)),
-            1.0
-            if L <= 0 <= U or 2 * _BIG_PI <= U
-            else max(cos_up(lower), cos_up(upper)),
-        )
-        for lower, upper in zip(iterator, iterator)
-        for L in [sym_mod(Decimal(lower), _BIG_PI)]
-        for U in [Decimal(upper) - Decimal(lower) + L]
-    ])
+    for lower, upper in zip(iterator, iterator):
+        with localcontext() as ctx:
+            ctx.prec += 2 * int(math.log10(1 + abs(lower))) + 10
+            _L = sym_mod(Decimal(lower), _BIG_PI)
+            _U = Decimal(upper) - Decimal(lower) + _L
+        CL = cos_sin_precise(lower)[0]
+        CU = cos_sin_precise(upper)[0]
+        if _L == -_BIG_PI or _BIG_PI <= _U:
+            L = -1.0
+        else:
+            L = float_down(min(CL, CU))
+        if _L <= 0 <= _U or 2 * _BIG_PI <= _U:
+            U = 1.0
+        else:
+            U = float_up(max(CL, CU))
+        intervals.append((L, U))
+    return Interval(*intervals)
 
 def cos_down(x: float) -> float:
     return float_down(cos_sin_precise(x)[0])
@@ -1110,7 +1132,6 @@ def digamma_root(n: int) -> tuple[float, float]:
             if dx >= U - L:
                 break
             dx = U - L
-            print(dx)
         DIGAMMA_ROOTS_CACHE[n] = (L, U)
     return DIGAMMA_ROOTS_CACHE[n]
 
@@ -1449,8 +1470,10 @@ def radians(x: Union[Interval, float]) -> Interval:
         x = Interval(float_split(x))
     return x / 180 * pi
 
-def sin(x: Union[Interval, float]) -> Interval:
-    if not isinstance(x, Interval):
+def sin(x: Union[Decimal, Interval, SupportsIndex, float]) -> Interval:
+    if isinstance(x, (Decimal, SupportsIndex)):
+        return Interval(float_split(cos_sin_precise(x)[1]))
+    elif not isinstance(x, Interval):
         x = Interval(float_split(x))
     elif isinstance(x, PiMultiple):
         intervals = []
@@ -1494,20 +1517,25 @@ def sin(x: Union[Interval, float]) -> Interval:
         return x
     elif math.isinf(x._endpoints[0]) or math.isinf(x._endpoints[-1]):
         return interval[-1.0:1.0]
+    intervals = []
     iterator = iter(x._endpoints)
-    return Interval(*[
-        (
-            -1.0
-            if L <= -_BIG_PI / 2 <= U or 3 * _BIG_PI / 2 <= U
-            else min(sin_down(lower), sin_down(upper)),
-            1.0
-            if L <= _BIG_PI / 2 <= U or 5 * _BIG_PI / 2 <= U
-            else max(sin_up(lower), sin_up(upper)),
-        )
-        for lower, upper in zip(iterator, iterator)
-        for L in [sym_mod(Decimal(lower), _BIG_PI)]
-        for U in [Decimal(upper) - Decimal(lower) + L]
-    ])
+    for lower, upper in zip(iterator, iterator):
+        with localcontext() as ctx:
+            ctx.prec += 2 * int(math.log10(1 + abs(lower))) + 10
+            _L = sym_mod(Decimal(lower), _BIG_PI)
+            _U = Decimal(upper) - Decimal(lower) + _L
+        SL = cos_sin_precise(lower)[1]
+        SU = cos_sin_precise(upper)[1]
+        if _L <= -_BIG_PI / 2 <= _U or 3 * _BIG_PI / 2 <= _U:
+            L = -1.0
+        else:
+            L = float_down(min(SL, SU))
+        if _L <= _BIG_PI / 2 <= _U or 5 * _BIG_PI / 2 <= _U:
+            U = 1.0
+        else:
+            U = float_up(max(SL, SU))
+        intervals.append((L, U))
+    return Interval(*intervals)
 
 def sin_down(x: float) -> float:
     return float_down(cos_sin_precise(x)[1])
@@ -1578,8 +1606,11 @@ def sqrt_up(x: float) -> float:
     else:
         return math.nextafter(y, math.inf)
 
-def tan(x: Union[Interval, float]) -> Interval:
-    if not isinstance(x, Interval):
+def tan(x: Union[Decimal, Interval, SupportsIndex, float]) -> Interval:
+    if isinstance(x, (Decimal, SupportsIndex)):
+        c, s = cos_sin_precise(x)
+        return Interval(float_split(s / c))
+    elif not isinstance(x, Interval):
         x = Interval(float_split(x))
     intervals = []
     if isinstance(x, PiMultiple):
