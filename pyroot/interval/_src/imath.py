@@ -467,7 +467,7 @@ def atan(x: Union[Interval, float]) -> Interval:
         x = Interval(float_split(x))
     iterator = iter(x.__as_interval__()._endpoints)
     intervals = []
-    result = PiMultiple()
+    pi_intervals = []
     for lower, upper in zip(iterator, iterator):
         if (
             lower in (-math.inf, -1.0, 0.0, 1.0, math.inf)
@@ -489,12 +489,11 @@ def atan(x: Union[Interval, float]) -> Interval:
                 U = 0.25
             if upper < 0:
                 U *= -1
-            result |= interval[L:U] * pi
-            if result._endpoints == (-0.5, 0.5):
-                return result
+            pi_intervals.append((L, U))
         else:
             intervals.append((atan_down(lower), atan_up(upper)))
-    if len(intervals) > 0:
+    result = PiMultiple(*pi_intervals)
+    if result != Interval((-0.5, 0.5)) * pi and len(intervals) > 0:
         return Interval(*intervals) | result
     else:
         return result
@@ -523,7 +522,7 @@ def atan2(y: Union[Interval, float], x: Union[Interval, float]) -> Interval:
     x = x.__as_interval__()
     y = y.__as_interval__()
     intervals = []
-    result = PiMultiple()
+    pi_intervals = []
     for xi in x[0:].sub_intervals:
         if xi.maximum == 0.0:
             continue
@@ -544,7 +543,7 @@ def atan2(y: Union[Interval, float], x: Union[Interval, float]) -> Interval:
             else:
                 intervals.append((atan2_down(yi.minimum, xi.maximum), atan2_up(yi.maximum, xi.minimum)))
                 continue
-            result |= Interval((L, U)) * pi
+            pi_intervals.append((L, U))
         for yi in y[:0].sub_intervals:
             if math.isinf(yi.minimum) or xi.minimum == 0.0:
                 L = -0.5
@@ -562,7 +561,7 @@ def atan2(y: Union[Interval, float], x: Union[Interval, float]) -> Interval:
             else:
                 intervals.append((atan2_down(yi.maximum, xi.maximum), atan2_up(yi.minimum, xi.minimum)))
                 continue
-            result |= Interval((L, U)) * pi
+            pi_intervals.append((L, U))
     for xi in x[:0].sub_intervals:
         if xi.minimum == 0.0:
             continue
@@ -583,7 +582,7 @@ def atan2(y: Union[Interval, float], x: Union[Interval, float]) -> Interval:
             else:
                 intervals.append((atan2_down(yi.maximum, xi.maximum), atan2_up(yi.minimum, xi.minimum)))
                 continue
-            result |= Interval((L, U)) * pi
+            pi_intervals.append((L, U))
         for yi in y[:0].sub_intervals:
             if math.isinf(yi.minimum) or xi.maximum == 0.0:
                 U = 0.5
@@ -601,8 +600,9 @@ def atan2(y: Union[Interval, float], x: Union[Interval, float]) -> Interval:
             else:
                 intervals.append((atan2_down(yi.maximum, xi.minimum), atan2_up(yi.minimum, xi.maximum)))
                 continue
-            result |= Interval((L, U)) * pi
-    if len(intervals) > 0:
+            pi_intervals.append((L, U))
+    result = PiMultiple(*pi_intervals)
+    if result != Interval((-0.5, 0.5)) * pi and len(intervals) > 0:
         return result | Interval(*intervals)
     else:
         return result
