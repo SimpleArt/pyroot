@@ -558,7 +558,14 @@ class Interval:
             if isinstance(other, SupportsFloat):
                 other = operator.index(other)
             other = Interval(fpur.float_split(other))
-            if other.minimum >= 0:
+            if other == 0:
+                if 0 in self:
+                    return type(self)((-inf, inf))
+                elif self == type(self)():
+                    return self
+                else:
+                    return type(self)((-inf, -inf), (inf, inf))
+            elif other.minimum >= 0:
                 iterator = iter(self._endpoints)
                 return type(self)(*[
                     (fpur.div_down(lower, L), fpur.div_up(upper, U))
@@ -575,7 +582,7 @@ class Interval:
                     for U in [other.maximum if lower < 0.0 else other.minimum]
                 ])
             else:
-                return type(self)()
+                assert False, "float_split should never produce values separated by 0"
         else:
             return NotImplemented
 
