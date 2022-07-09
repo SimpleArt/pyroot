@@ -314,7 +314,7 @@ class Interval:
                     intervals.append((start, stop))
                 for y in other[:0].sub_intervals:
                     if y.minimum < 0.0 == x.minimum:
-                        start = stop = math.inf
+                        start = stop = inf
                     else:
                         start = fpur.pow_down(x.maximum, y.maximum)
                         stop = fpur.pow_up(x.minimum, y.minimum)
