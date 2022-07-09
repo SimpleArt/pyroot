@@ -1,6 +1,8 @@
 import math
 from decimal import Decimal
-from typing import Iterator, SupportsFloat
+from typing import Iterator
+
+from .typing import SupportsRichFloat
 
 def split_bits(n: int) -> Iterator[int]:
     if n > 0:
@@ -12,7 +14,7 @@ def split_bits(n: int) -> Iterator[int]:
             yield -(1 << (n.bit_length() - 1))
             n += 1 << (n.bit_length() - 1)
 
-def float_split(x: SupportsFloat) -> tuple[float, float]:
+def float_split(x: SupportsRichFloat) -> tuple[float, float]:
     y = float(x)
     if x < y:
         L = math.nextafter(y, -math.inf)
@@ -24,14 +26,14 @@ def float_split(x: SupportsFloat) -> tuple[float, float]:
         L = U = y
     return (L, U)
 
-def float_down(x: SupportsFloat) -> float:
+def float_down(x: SupportsRichFloat) -> float:
     y = float(x)
     if x < y:
         return math.nextafter(y, -math.inf)
     else:
         return y
 
-def float_up(x: SupportsFloat) -> float:
+def float_up(x: SupportsRichFloat) -> float:
     y = float(x)
     if x > y:
         return math.nextafter(y, math.inf)

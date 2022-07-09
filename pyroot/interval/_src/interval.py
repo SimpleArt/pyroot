@@ -3,13 +3,18 @@ import operator
 from decimal import Decimal
 from heapq import merge
 from math import ceil, floor, inf, isinf, isnan
-from typing import Any, Iterable, Iterator, Optional, SupportsFloat, SupportsIndex, TypeVar, Union, Tuple as tuple
+from typing import Any, Iterable, Iterator, Optional, SupportsFloat
+from typing import SupportsIndex, TypeVar, Union, get_args
+from typing import Tuple as tuple
 
 from . import fpu_rounding as fpur
+from .typing import RealLike, SupportsRichFloat
 
 __all__ = ["Interval", "interval"]
 
 Self = TypeVar("Self", bound="interval")
+
+NOT_REAL = "could not interpret {} as a real value"
 
 
 class Interval:
@@ -17,24 +22,29 @@ class Interval:
 
     __slots__ = ("_endpoints",)
 
-    def __init__(self: Self, /, *args: tuple[float, float]) -> None:
+    def __init__(self: Self, /, *args: tuple[RealLike, RealLike]) -> None:
         for arg in args:
             if not isinstance(arg, tuple):
                 raise TypeError(f"interval(...) expects tuples for arguments, got {arg!r}")
             elif len(arg) != 2:
                 raise ValueError(f"interval(...) expects (lower, upper) for arguments, got {len(arg)!r} arguments")
             for x in arg:
-                if not isinstance(x, SupportsFloat):
-                    raise TypeError(f"could not interpret {x!r} as a real value")
-                elif isnan(float(x)):
-                    raise ValueError(f"could not interpret {x!r} as a real value")
-        intervals = [
-            (L, U)
-            for lower, upper in args
-            for L in [fpur.float_down(lower)]
-            for U in [fpur.float_up(upper)]
-            if L <= U
-        ]
+                if not isinstance(x, get_args(RealLike)):
+                    raise TypeError(NOT_REAL.format(repr(x)))
+                elif isinstance(x, Decimal) and x.is_nan():
+                    raise TypeError(NOT_REAL.format(repr(x)))
+                elif isinstance(x, SupportsFloat) and isnan(float(x)):
+                    raise ValueError(NOT_REAL.format(repr(float(x))))
+        intervals = []
+        for lower, upper in args:
+            if isinstance(lower, SupportsIndex):
+                lower = operator.index(lower)
+            lower = fpur.float_down(lower)
+            if isinstance(upper, SupportsIndex):
+                upper = operator.index(upper)
+            upper = fpur.float_down(upper)
+            if lower <= upper:
+                intervals.append((lower, upper))
         intervals.sort()
         if len(intervals) == 0:
             self._endpoints = ()
@@ -54,7 +64,7 @@ class Interval:
     def __abs__(self: Self, /) -> Self:
         return -self[:0] | self[0:]
 
-    def __add__(self: Self, other: Union[Interval, float], /) -> Interval:
+    def __add__(self: Self, other: Union[Interval, RealLike], /) -> Interval:
         iterator = iter(self._endpoints)
         if isinstance(other, Interval) and type(self).__add__ is type(other).__add__:
             return type(self)(*[
@@ -78,7 +88,7 @@ class Interval:
         else:
             return NotImplemented
 
-    def __and__(self: Self, other: Union[Interval, float], /) -> Interval:
+    def __and__(self: Self, other: Union[Interval, RealLike], /) -> Interval:
         iterator = iter(self._endpoints)
         if isinstance(other, Interval) and type(self).__and__ is type(other).__and__:
             return type(self)(*[
@@ -86,7 +96,9 @@ class Interval:
                 for x_lower, x_upper in zip(iterator, iterator)
                 for y_lower, y_upper in zip(*[iter(other._endpoints)] * 2)
             ])
-        elif isinstance(other, SupportsFloat):
+        elif isinstance(other, get_args(RealLike)):
+            if isinstance(other, SupportsIndex):
+                other = operator.index(other)
             return self & Interval(fpur.float_split(other))
         else:
             return NotImplemented
@@ -95,11 +107,20 @@ class Interval:
         return self
 
     def __contains__(self: Self, other: Any, /) -> bool:
-        if not isinstance(other, SupportsFloat):
+        if isinstance(other, SupportsIndex):
+            other = operator.index(other)
+        elif isinstance(other, SupportsFloat):
+            return all(
+                any(
+                    x.minimum <= o <= x.maximum
+                    for x in self.sub_intervals
+                )
+                for o in {*fpur.float_split(other)}
+            )
+        elif not isinstance(other, Decimal):
             return False
         return any(
             x.minimum <= other <= x.maximum
-            for o in {*fpur.float_split(other)}
             for x in self.sub_intervals
         )
 
@@ -110,8 +131,12 @@ class Interval:
     def __eq__(self: Self, other: Any, /) -> bool:
         if isinstance(other, Interval) and type(self).__eq__ is type(other).__eq__:
             return self._endpoints == other._endpoints
+        elif isinstance(other, (Decimal, SupportsIndex)):
+            if isinstance(other, SupportsIndex):
+                other = operator.index(other)
+            return self._endpoints == (other, other)
         elif isinstance(other, SupportsFloat):
-            return self._endpoints == float_split(other)
+            return self._endpoints == fpur.float_split(other)
         else:
             return NotImplemented
 
@@ -143,31 +168,44 @@ class Interval:
                 raise TypeError(f"interval[...] expects slices, got {arg!r}")
             elif arg.step is not None:
                 raise TypeError(f"interval[...] expects [lower:upper] for arguments, got a step argument")
-            elif arg.start is not None and not isinstance(arg.start, SupportsFloat):
-                raise TypeError(f"could not interpret {arg.start} as a real value")
-            elif arg.start is not None and isnan(float(arg.start)):
-                raise ValueError(f"could not interpret {float(arg.start)!r} as a real value")
-            elif arg.stop is not None and not isinstance(arg.stop, SupportsFloat):
-                raise TypeError(f"could not interpret {arg.stop} as a real value")
-            elif arg.stop is not None and isnan(float(arg.stop)):
-                raise ValueError(f"could not interpret {float(arg.stop)!r} as a real value")
-        return self & type(self)(*[
-            (
-                -inf if arg.start is None else fpur.float_down(arg.start),
-                inf if arg.stop is None else fpur.float_up(arg.stop),
-            )
-            for arg in args
-        ])
+            elif arg.start is not None and not isinstance(arg.start, (Decimal, SupportsIndex, SupportsFloat)):
+                raise TypeError(NOT_REAL.format(repr(arg.start)))
+            elif arg.start is not None and isinstance(arg.start, Decimal) and arg.start.is_nan():
+                raise TypeError(NOT_REAL.format(repr(arg.start)))
+            elif arg.start is not None and isinstance(arg.start, SupportsFloat) and isnan(float(arg.start)):
+                raise TypeError(NOT_REAL.format(repr(float(arg.start))))
+            elif arg.stop is not None and not isinstance(arg.stop, (Decimal, SupportsIndex, SupportsFloat)):
+                raise TypeError(NOT_REAL.format(repr(arg.stop)))
+            elif arg.stop is not None and isinstance(arg.stop, Decimal) and arg.stop.is_nan():
+                raise TypeError(NOT_REAL.format(repr(arg.stop)))
+            elif arg.stop is not None and isinstance(arg.stop, SupportsFloat) and isnan(float(arg.stop)):
+                raise TypeError(NOT_REAL.format(repr(float(arg.stop))))
+        intervals = []
+        for arg in args:
+            if arg.start is None:
+                L = -inf
+            elif isinstance(arg.start, SupportsIndex):
+                L = fpur.float_down(operator.index(arg.start))
+            else:
+                L = fpur.float_down(arg.start)
+            if arg.stop is None:
+                U = inf
+            elif isinstance(arg.stop, SupportsIndex):
+                U = fpur.float_up(operator.index(arg.stop))
+            else:
+                U = fpur.float_up(arg.stop)
+            intervals.append((L, U))
+        return self & type(self)(*intervals)
 
     def __invert__(self: Self, /) -> Self:
         iterator = iter([-inf, *self._endpoints, inf])
         return type(self)(*zip(iterator, iterator))
 
-    def __mul__(self: Self, other: Union[Interval, float], /) -> Interval:
+    def __mul__(self: Self, other: Union[Interval, RealLike], /) -> Interval:
         if isinstance(other, Interval) and type(self).__mul__ is type(other).__mul__:
             intervals = []
             if 0 in self and len(other._endpoints) > 0 or 0 in other and len(self._endpoints) > 0:
-                if any(isinf(x) for x in (self.minimum, sself.maximum, other.minimum, other.maximum)):
+                if any(isinf(x) for x in (self.minimum, self.maximum, other.minimum, other.maximum)):
                     return interval
                 intervals.append((0, 0))
             for x in self[0:].sub_intervals:
@@ -237,7 +275,9 @@ class Interval:
                     else:
                         intervals.append((start, stop))
             return type(self)(*intervals)
-        elif isinstance(other, SupportsFloat):
+        elif isinstance(other, get_args(RealLike)):
+            if isinstance(other, SupportsIndex):
+                other = operator.index(other)
             return self * Interval(fpur.float_split(other))
         else:
             return NotImplemented
@@ -246,13 +286,15 @@ class Interval:
         iterator = reversed(self._endpoints)
         return type(self)(*[(-upper, -lower) for upper, lower in zip(iterator, iterator)])
 
-    def __or__(self: Self, other: Union[Interval, float], /) -> Interval:
+    def __or__(self: Self, other: Union[Interval, RealLike], /) -> Interval:
         if isinstance(other, Interval) and type(self).__or__ is type(other).__or__:
             return type(self)(
                 *[(x.minimum, x.maximum) for x in self.sub_intervals],
                 *[(x.minimum, x.maximum) for x in other.sub_intervals],
             )
-        elif isinstance(other, SupportsFloat):
+        elif isinstance(other, get_args(RealLike)):
+            if isinstance(other, SupportsFloat):
+                other = operator.index(other)
             return type(self)(*[(x.minimum, x.maximum) for x in self.sub_intervals], fpur.float_split(other))
         else:
             return NotImplemented
@@ -260,7 +302,7 @@ class Interval:
     def __pos__(self: Self, /) -> Self:
         return self
 
-    def __pow__(self: Self, other: Union[Interval, float], modulo: None = None, /) -> Interval:
+    def __pow__(self: Self, other: Union[Interval, RealLike], modulo: None = None, /) -> Interval:
         if modulo is not None:
             return NotImplemented
         elif isinstance(other, Interval) and type(self).__pow__ is type(other).__pow__:
@@ -325,9 +367,7 @@ class Interval:
             return type(self)(*intervals)
         elif isinstance(other, SupportsFloat):
             other = Interval(fpur.float_split(other))
-            if other.minimum.is_integer() and other.minimum == other.maximum:
-                return self ** round(other.minimum)
-            elif other.minimum > 0:
+            if other.minimum > 0:
                 iterator = iter(self[0:]._endpoints)
                 intervals = [
                     (fpur.pow_down(lower, other.minimum), fpur.pow_up(upper, other.maximum))
@@ -344,18 +384,18 @@ class Interval:
         else:
             return NotImplemented
 
-    def __radd__(self: Self, other: Union[Interval, float], /) -> Interval:
+    def __radd__(self: Self, other: Union[Interval, RealLike], /) -> Interval:
         if isinstance(other, Interval):
             return other.__as_interval__() + self.__as_interval__()
-        elif isinstance(other, SupportsFloat):
+        elif isinstance(other, get_args(RealLike)):
             return self + other
         else:
             return NotImplemented
 
-    def __rand__(self: Self, other: float, /) -> Interval:
+    def __rand__(self: Self, other: Union[Interval, RealLike], /) -> Interval:
         if isinstance(other, Interval):
             return other.__as_interval__() & self.__as_interval__()
-        elif isinstance(other, SupportsFloat):
+        elif isinstance(other, get_args(RealLike)):
             return self & other
         else:
             return NotImplemented
@@ -363,55 +403,59 @@ class Interval:
     def __repr__(self: Self, /) -> str:
         return f"{self}"
 
-    def __rmul__(self: Self, other: Union[Interval, float], /) -> Interval:
+    def __rmul__(self: Self, other: Union[Interval, RealLike], /) -> Interval:
         if isinstance(other, Interval):
             return other.__as_interval__() * self.__as_interval__()
-        elif isinstance(other, SupportsFloat):
+        elif isinstance(other, get_args(RealLike)):
             return self * other
         else:
             return NotImplemented
 
-    def __ror__(self: Self, other: Union[Interval, float], /) -> Interval:
+    def __ror__(self: Self, other: Union[Interval, RealLike], /) -> Interval:
         if isinstance(other, Interval):
             return other.__as_interval__() | self.__as_interval__()
-        elif isinstance(other, SupportsFloat):
+        elif isinstance(other, get_args(RealLike)):
             return self | other
         else:
             return NotImplemented
 
-    def __rpow__(self: Self, other: Union[Interval, float], modulo: None = None, /) -> Interval:
+    def __rpow__(self: Self, other: Union[Interval, RealLike], modulo: None = None, /) -> Interval:
         if modulo is not None:
             return NotImplemented
         elif isinstance(other, Interval):
             return other.__as_interval__() ** self.__as_interval__()
-        elif isinstance(other, SupportsFloat):
+        elif isinstance(other, get_args(RealLike)):
+            if isinstance(other, SupportsIndex):
+                other = operator.index(other)
             return Interval(fpur.float_split(other)) ** self
         else:
             return NotImplemented
 
-    def __rsub__(self: Self, other: Union[Interval, float], /) -> Interval:
-        if isinstance(other, (Interval, SupportsFloat)):
+    def __rsub__(self: Self, other: Union[Interval, RealLike], /) -> Interval:
+        if isinstance(other, (Interval, *get_args(RealLike))):
             return -self + other
         else:
             return NotImplemented
 
-    def __rtruediv__(self: Self, other: Union[Interval, float], /) -> Interval:
+    def __rtruediv__(self: Self, other: Union[Interval, RealLike], /) -> Interval:
         if isinstance(other, Interval):
             return other.__as_interval__() / self.__as_interval__()
-        elif isinstance(other, SupportsFloat):
+        elif isinstance(other, get_args(RealLike)):
+            if isinstance(other, SupportsIndex):
+                other = operator.index(other)
             return Interval(fpur.float_split(other)) / self
         else:
             return NotImplemented
 
-    def __rxor__(self: Self, other: Union[Interval, float], /) -> Interval:
+    def __rxor__(self: Self, other: Union[Interval, RealLike], /) -> Interval:
         if isinstance(other, Interval):
             return other.__as_interval__() ^ self.__as_interval__()
-        elif isinstance(other, SupportsFloat):
+        elif isinstance(other, get_args(RealLike)):
             return self ^ other
         else:
             return NotImplemented
 
-    def __sub__(self: Self, other: Union[Interval, float], /) -> Interval:
+    def __sub__(self: Self, other: Union[Interval, RealLike], /) -> Interval:
         iterator = iter(self._endpoints)
         if isinstance(other, Interval) and type(self).__sub__ is type(other).__sub__:
             return type(self)(*[
@@ -437,7 +481,7 @@ class Interval:
         else:
             return NotImplemented
 
-    def __truediv__(self: Self, other: Union[Interval, float], /) -> Interval:
+    def __truediv__(self: Self, other: Union[Interval, RealLike], /) -> Interval:
         if isinstance(other, Interval) and type(self).__truediv__ is type(other).__truediv__:
             intervals = []
             if not len(self._endpoints) != 0 != len(other._endpoints):
@@ -510,7 +554,9 @@ class Interval:
                     else:
                         intervals.append((start, stop))
             return type(self)(*intervals)
-        elif isinstance(other, SupportsFloat):
+        elif isinstance(other, get_args(RealLike)):
+            if isinstance(other, SupportsFloat):
+                other = operator.index(other)
             other = Interval(fpur.float_split(other))
             if other.minimum >= 0:
                 iterator = iter(self._endpoints)
@@ -533,11 +579,13 @@ class Interval:
         else:
             return NotImplemented
 
-    def __xor__(self: Self, other: Union[Interval, float], /) -> Interval:
+    def __xor__(self: Self, other: Union[Interval, RealLike], /) -> Interval:
         if isinstance(other, Interval) and type(self).__xor__ is type(other).__xor__:
             iterator = merge(self._endpoints, other._endpoints)
             return type(self)(*zip(iterator, iterator))
-        elif isinstance(other, SupportsFloat):
+        elif isinstance(other, RealLike):
+            if isinstance(other, SupportsIndex):
+                other = operator.index(other)
             return self ^ type(self)(fpur.float_split(other))
         else:
             return NotImplemented
