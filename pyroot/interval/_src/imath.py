@@ -1096,7 +1096,7 @@ def exp(x: Union[Interval, RealLike]) -> Interval:
             return Interval(float_split(Decimal(operator.index(x)).exp()))
         except decimal.Overflow:
             return Interval((math.nextafter(math.inf, 0.0), math.inf))
-    elif isinstance(x, RealLike):
+    elif isinstance(x, get_args(RealLike)):
         x = Interval(float_split(x))
     elif not isinstance(x, Interval):
         raise TypeError(NOT_INTERVAL.format(repr(x)))
@@ -1148,7 +1148,7 @@ def expm1(x: Union[Interval, RealLike]) -> Interval:
             return Interval(float_split(Decimal(operator.index(x)).exp() - 1))
         except decimal.Overflow:
             return Interval((math.nextafter(math.inf, 0.0), math.inf))
-    elif isinstance(x, RealLike):
+    elif isinstance(x, get_args(RealLike)):
         x = Interval(float_split(x))
     else:
         raise TypeError(NOT_INTERVAL.format(repr(x)))
