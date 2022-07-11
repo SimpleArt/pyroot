@@ -1,12 +1,22 @@
 import math
 from collections.abc import Callable, Iterator
+from itertools import chain
 from math import exp, log, sqrt
-from typing import Optional
+from typing import Iterable, Iterator, Optional, TypeVar
 
 import pyroot._utils as _utils
 from .interval import Interval
 
 __all__ = ["bisect", "newton"]
+
+T = TypeVar("T")
+
+def pairwise(iterable: Iterable[T]) -> Iterator[tuple[T, T]]:
+    iterator = iter(iterable)
+    x = next(iterator, None)
+    for y in iterator:
+        yield (x, y)
+        x = y
 
 def bisect(
     f: Callable[[Interval], Interval],
@@ -161,36 +171,51 @@ def newton(
         for interval in reversed(intervals)
         if 0 in f(interval)
     ]
+    use_left = True
     while len(intervals) > 0:
         interval = intervals.pop()
         size = interval.size
         if size <= abs_err + rel_err * abs(interval).minimum:
             yield interval
             continue
-        x = _utils.mean(interval.minimum, interval.maximum)
+        if use_left:
+            x = interval.minimum
+        else:
+            x = interval.maximum
+        use_left ^= True
         y = f(Interval((x, x)))
-        previous_interval = interval
-        interval &= x - y / fprime(interval)
-        if len(interval._endpoints) == 0:
-            pass
-        elif interval != previous_interval:
-            if interval.size <= abs_tol + rel_tol * abs(interval).minimum:
-                abs_current = abs_err
-                rel_current = rel_err
-            else:
-                abs_current = abs_tol
-                rel_current = rel_tol
-            x = previous_interval.maximum
-            x -= 0.25 * (abs_current + rel_current * abs(x))
-            if x < interval.maximum:
-                if 0 in f(interval[x:]):
-                    intervals.append(interval[x:])
-                interval = interval[:x]
-                if len(interval._endpoints) == 0:
-                    continue
-            x = previous_interval.minimum
-            x += 0.25 * (abs_current + rel_current * abs(x))
-            if x > interval.minimum:
+        for right, left in pairwise(chain(
+            [interval.maximum],
+            reversed((interval & (x - y / fprime(interval)))._endpoints),
+            [interval.minimum],
+        )):
+            if left == right:
+                continue
+            elif left == interval.minimum and right == interval.maximum:
+                x = _utils.mean(left, right)
+                intervals.extend(
+                    sub_interval
+                    for sub_interval in [interval[x:], interval[:x]]
+                    if 0 in f(sub_interval)
+                )
+            elif 0 in f(Interval((left, right))):
+                interval = Interval((left, right))
+                if interval.size <= abs_tol + rel_tol * abs(interval).minimum:
+                    abs_current = abs_err
+                    rel_current = rel_err
+                else:
+                    abs_current = abs_tol
+                    rel_current = rel_tol
+                x = right - 0.25 * (abs_current + rel_current * abs(right))
+                x = max(x, _utils.mean(left, right))
+                if x < right:
+                    if 0 in f(interval[x:]):
+                        intervals.append(interval[x:])
+                    interval = interval[:x]
+                    if interval == interval[()]:
+                        continue
+                x = left + 0.25 * (abs_current + rel_current * abs(left))
+                x = min(x, _utils.mean(left, right))
                 iterator = reversed(interval[x:]._endpoints)
                 intervals.extend(
                     interval
@@ -198,23 +223,9 @@ def newton(
                     for interval in [Interval((lower, upper))]
                     if 0 in f(interval)
                 )
-                interval = interval[:x]
-                if 0 in f(interval):
-                    intervals.append(interval)
-            else:
-                iterator = reversed(interval._endpoints)
-                intervals.extend(
-                    interval
-                    for upper, lower in zip(iterator, iterator)
-                    for interval in [Interval((lower, upper))]
-                    if 0 in f(interval)
-                )
-        else:
-            right = interval[x:]
-            if 0 in f(right):
-                intervals.append(right)
-            left = interval[:x]
-            if 0 in f(left):
-                intervals.append(left)
+                if x > left:
+                    interval = interval[:x]
+                    if 0 in f(interval):
+                        intervals.append(interval)
     if 0.0 in f(leftover):
         yield leftover
