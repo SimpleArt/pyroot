@@ -597,6 +597,111 @@ class Interval:
         else:
             return NotImplemented
 
+    def arccos(self: Self) -> Interval:
+        from .imath import acos
+        return acos(self)
+
+    def arccosh(self: Self) -> Interval:
+        from .imath import acosh
+        return acosh(self)
+
+    def arcsin(self: Self) -> Interval:
+        from .imath import asin
+        return asin(self)
+
+    def arcsinh(self: Self) -> Interval:
+        from .imath import asinh
+        return asinh(self)
+
+    def arctan(self: Self) -> Interval:
+        from .imath import atan
+        return atan(self)
+
+    def arctan2(self: Self, other: Union[Interval, RealLike]) -> Interval:
+        from .imath import atan2
+        return atan2(self, other)
+
+    def arctanh(self: Self) -> Interval:
+        from .imath import atanh
+        return atanh(self)
+
+    def cos(self: Self) -> Interval:
+        from .imath import cos
+        return cos(self)
+
+    def cosh(self: Self) -> Interval:
+        from .imath import cosh
+        return cosh(self)
+
+    def degrees(self: Self, /) -> Interval:
+        from .imath import degrees
+        return degrees(self)
+
+    rad2deg = degrees
+
+    def exp(self: Self, /) -> Interval:
+        from .imath import exp
+        return exp(self)
+
+    def exp2(self: Self, /) -> Interval:
+        return 2 ** self
+
+    def expm1(self: Self, /) -> Interval:
+        from .imath import expm1
+        return expm1(self)
+
+    def hypot(self: Self, other: Union[Interval, RealLike]) -> Interval:
+        from .imath import hypot
+        return hypot(self, other)
+
+    def log(self: Self, base: Union[Interval, RealLike], /) -> Interval:
+        from .imath import log
+        return log(self, base)
+
+    def log10(self: Self, /) -> Interval:
+        from .imath import log10
+        return log10(self)
+
+    def log1p(self: Self, /) -> Interval:
+        from .imath import log1p
+        return log1p(self)
+
+    def log2(self: Self, /) -> Interval:
+        from .imath import log2
+        return log2(self)
+
+    def radians(self: Self, /) -> Interval:
+        from .imath import radians
+        return radians(self)
+
+    deg2rad = radians
+
+    def reciprocal(self: Self, /) -> Interval:
+        return 1 / self
+
+    def sin(self: Self, /) -> Interval:
+        from .imath import sin
+        return sin(self)
+
+    def sinh(self: Self, /) -> Interval:
+        from .imath import sinh
+        return sinh(self)
+
+    def sqrt(self: Self, /) -> Interval:
+        from .imath import sqrt
+        return sqrt(self)
+
+    def square(self: Self, /) -> Interval:
+        return self ** 2
+
+    def tan(self: Self, /) -> Interval:
+        from .imath import tan
+        return tan(self)
+
+    def tanh(self: Self, /) -> Interval:
+        from .imath import tanh
+        return tanh(self)
+
     @property
     def maximum(self: Self, /) -> float:
         if len(self._endpoints) == 0:
