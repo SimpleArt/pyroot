@@ -42,7 +42,7 @@ class Interval:
             lower = fpur.float_down(lower)
             if isinstance(upper, SupportsIndex):
                 upper = operator.index(upper)
-            upper = fpur.float_down(upper)
+            upper = fpur.float_up(upper)
             if lower <= upper:
                 intervals.append((lower, upper))
         intervals.sort()

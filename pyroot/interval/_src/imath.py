@@ -48,7 +48,7 @@ class PiMultiple(Interval):
             intervals = []
             iterator = iter(self._endpoints)
             with localcontext() as ctx:
-                if isinstance(SupportsIndex):
+                if isinstance(other, SupportsIndex):
                     other = operator.index(other)
                     ctx.prec += other.bit_length() + 2
                 else:
