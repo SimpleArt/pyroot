@@ -277,10 +277,15 @@ class Interval:
             return type(self)(*intervals)
         elif isinstance(other, get_args(RealLike)):
             if isinstance(other, SupportsIndex):
-                other = operator.index(other)
-            return self * Interval(fpur.float_split(other))
-        else:
-            return NotImplemented
+                try:
+                    other = operator.index(other)
+                except TypeError:
+                    pass
+            try:
+                return self * Interval(fpur.float_split(other))
+            except TypeError:
+                pass
+        return NotImplemented
 
     def __neg__(self: Self, /) -> Self:
         iterator = reversed(self._endpoints)
