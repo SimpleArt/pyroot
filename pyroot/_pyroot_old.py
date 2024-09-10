@@ -537,6 +537,12 @@ def chandrupatla_in(
             x2 = x
             y2 = y
             x = secant(x1, x2, y1, y2)
+        if x1 < x2:
+            if x < x1:
+                x = x1
+        else:
+            if x > x2:
+                x = x2
     # Use the secant method on the final iteration for high precision.
     return secant(x1, x2, y1, y2)
 
@@ -681,6 +687,12 @@ def chandrupatla_iter(
             x2 = x
             y2 = y
             x = secant(x1, x2, y1, y2)
+        if x1 < x2:
+            if x < x1:
+                x = x1
+        else:
+            if x > x2:
+                x = x2
     # Use the secant method on the final iteration for high precision.
     yield secant(x1, x2, y1, y2)
 
@@ -792,6 +804,12 @@ def heun_ode_in(
             # Fall-back to the secant method if convergence fails.
             if not is_between(x1, x, x2):
                 x = secant(x1, x2, y1, y2)
+        if x1 < x2:
+            if x < x1:
+                x = x1
+        else:
+            if x > x2:
+                x = x2
     # Use the secant method on the final iteration for high precision.
     return secant(x1, x2, y1, y2)
 
@@ -906,6 +924,12 @@ def heun_ode_iter(
             # Fall-back to the secant method if convergence fails.
             if not is_between(x1, x, x2):
                 x = secant(x1, x2, y1, y2)
+        if x1 < x2:
+            if x < x1:
+                x = x1
+        else:
+            if x > x2:
+                x = x2
     # Use the secant method on the final iteration for high precision.
     yield secant(x1, x2, y1, y2)
 
@@ -1019,6 +1043,12 @@ def midpoint_ode_in(
             # Fall-back to the secant method if convergence fails.
             if not is_between(x1, x, x2):
                 x = secant(x1, x2, y1, y2)
+        if x1 < x2:
+            if x < x1:
+                x = x1
+        else:
+            if x > x2:
+                x = x2
     # Use the secant method on the final iteration for high precision.
     return secant(x1, x2, y1, y2)
 
@@ -1139,6 +1169,12 @@ def midpoint_ode_iter(
             # Fall-back to the secant method if convergence fails.
             if not is_between(x1, x, x2):
                 x = secant(x1, x2, y1, y2)
+        if x1 < x2:
+            if x < x1:
+                x = x1
+        else:
+            if x > x2:
+                x = x2
     # Use the secant method on the final iteration for high precision.
     yield secant(x1, x2, y1, y2)
 
@@ -1235,6 +1271,12 @@ def newt_ode_in(
             # Fall-back to the secant method if convergence fails.
             if not is_between(x1, x, x2):
                 x = secant(x1, x2, y1, y2)
+        if x1 < x2:
+            if x < x1:
+                x = x1
+        else:
+            if x > x2:
+                x = x2
     # Use the secant method on the final iteration for high precision.
     return secant(x1, x2, y1, y2)
 
@@ -1334,6 +1376,12 @@ def newt_ode_iter(
             # Fall-back to the secant method if convergence fails.
             if not is_between(x1, x, x2):
                 x = secant(x1, x2, y1, y2)
+        if x1 < x2:
+            if x < x1:
+                x = x1
+        else:
+            if x > x2:
+                x = x2
     # Use the secant method on the final iteration for high precision.
     yield secant(x1, x2, y1, y2)
 
@@ -1420,6 +1468,12 @@ def newt_safe_in(
             # Fall-back to the secant method if convergence fails.
             if not is_between(x1, x, x2):
                 x = secant(x1, x2, y1, y2)
+        if x1 < x2:
+            if x < x1:
+                x = x1
+        else:
+            if x > x2:
+                x = x2
     # Use the secant method on the final iteration for high precision.
     return secant(x1, x2, y1, y2)
 
@@ -1509,6 +1563,12 @@ def newt_safe_iter(
             # Fall-back to the secant method if convergence fails.
             if not is_between(x1, x, x2):
                 x = secant(x1, x2, y1, y2)
+        if x1 < x2:
+            if x < x1:
+                x = x1
+        else:
+            if x > x2:
+                x = x2
     # Use the secant method on the final iteration for high precision.
     yield secant(x1, x2, y1, y2)
 
@@ -1628,6 +1688,12 @@ def nonsimple_in(
             x2 = x
             y2 = y
             x = secant(x1, x2, y1, y2, power)
+        if x1 < x2:
+            if x < x1:
+                x = x1
+        else:
+            if x > x2:
+                x = x2
     # Use the secant method on the final iteration for high precision.
     if 0.6 < power < 1.4:
         return secant(x1, x2, y1, y2)
@@ -1753,6 +1819,12 @@ def nonsimple_iter(
             x2 = x
             y2 = y
             x = secant(x1, x2, y1, y2, power)
+        if x1 < x2:
+            if x < x1:
+                x = x1
+        else:
+            if x > x2:
+                x = x2
     # Use the secant method on the final iteration for high precision.
     if 0.6 < power < 1.4:
         yield secant(x1, x2, y1, y2)
@@ -1856,6 +1928,12 @@ def rk45_ode_in(
             # Fall-back to the secant method if convergence fails.
             if not is_between(x1, x, x2):
                 x = secant(x1, x2, y1, y2)
+        if x1 < x2:
+            if x < x1:
+                x = x1
+        else:
+            if x > x2:
+                x = x2
     # Use the secant method on the final iteration for high precision.
     return secant(x1, x2, y1, y2)
 
@@ -1959,6 +2037,12 @@ def rk45_ode_iter(
             # Fall-back to the secant method if convergence fails.
             if not is_between(x1, x, x2):
                 x = secant(x1, x2, y1, y2)
+        if x1 < x2:
+            if x < x1:
+                x = x1
+        else:
+            if x > x2:
+                x = x2
     # Use the secant method on the final iteration for high precision.
     yield secant(x1, x2, y1, y2)
 
@@ -2061,6 +2145,12 @@ def secant_in(
             x2 = x
             y2 = y
             x = secant(x1, x2, y1, y2)
+        if x1 < x2:
+            if x < x1:
+                x = x1
+        else:
+            if x > x2:
+                x = x2
     # Use the secant method on the final iteration for high precision.
     return secant(x1, x2, y1, y2)
 
@@ -2166,6 +2256,12 @@ def secant_iter(
             x2 = x
             y2 = y
             x = secant(x1, x2, y1, y2)
+        if x1 < x2:
+            if x < x1:
+                x = x1
+        else:
+            if x > x2:
+                x = x2
     # Use the secant method on the final iteration for high precision.
     yield secant(x1, x2, y1, y2)
 
